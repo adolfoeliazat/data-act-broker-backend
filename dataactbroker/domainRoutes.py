@@ -13,6 +13,7 @@ def add_domain_routes(app):
     @app.route("/v1/list_agencies/", methods=["GET"])
     def list_agencies():
         """ List all CGAC Agencies """
+        logger.info('ASHIK_DEBUG V1: Calling list_users route')
         sess = GlobalDB.db().session
 
         if g.user is None:

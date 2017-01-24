@@ -14,6 +14,7 @@ from dataactcore.models.lookups import FILE_TYPE_DICT_LETTER
 from dataactcore.utils.jsonResponse import JsonResponse
 from dataactcore.utils.responseException import ResponseException
 from dataactcore.utils.statusCode import StatusCode
+import logger
 
 
 # Add the file submission route
@@ -22,12 +23,14 @@ def add_file_routes(app, create_credentials, is_local, server_path):
 
     # Keys for the post route will correspond to the four types of files
     @app.route("/v1/submit_files/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     def submit_files():
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
         return file_manager.submit(create_credentials)
 
     @app.route("/v1/finalize_job/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     @use_kwargs({'upload_id': webargs_fields.Int(required=True)})
     def finalize_submission(upload_id):
@@ -35,12 +38,14 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.finalize(upload_id)
 
     @app.route("/v1/check_status/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @convert_to_submission_id
     @requires_submission_perms('reader')
     def check_status(submission):
         return get_status(submission)
 
     @app.route("/v1/submission_error_reports/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     @use_kwargs({'submission_id': webargs_fields.Int(required=True)})
     def submission_error_reports(submission_id):
@@ -48,6 +53,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.get_error_report_urls_for_submission(submission_id)
 
     @app.route("/v1/submission_warning_reports/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     @use_kwargs({'submission_id': webargs_fields.Int(required=True)})
     def submission_warning_reports(submission_id):
@@ -55,18 +61,21 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.get_error_report_urls_for_submission(submission_id, is_warning=True)
 
     @app.route("/v1/error_metrics/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @convert_to_submission_id
     @requires_submission_perms('reader')
     def submission_error_metrics(submission):
         return get_error_metrics(submission)
 
     @app.route("/v1/local_upload/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     def upload_local_file():
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
         return file_manager.upload_file()
 
     @app.route("/v1/list_submissions/", methods=["GET"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     @use_kwargs({
         'page': webargs_fields.Int(missing=1),
@@ -80,6 +89,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return list_submissions_handler(page, limit, certified)
 
     @app.route("/v1/get_protected_files/", methods=["GET"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     def get_protected_files():
         """ Return signed URLs for all help page files """
@@ -87,6 +97,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.get_protected_files()
 
     @app.route("/v1/generate_file/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @convert_to_submission_id
     @use_kwargs({'file_type': webargs_fields.String(
         required=True,
@@ -98,6 +109,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.generate_file(submission_id, file_type)
 
     @app.route("/v1/generate_detached_file/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     @use_kwargs({
         'file_type': webargs_fields.String(
@@ -112,6 +124,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.generate_detached_file(file_type, cgac_code, start, end)
 
     @app.route("/v1/check_detached_generation_status/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     @use_kwargs({'job_id': webargs_fields.Int(required=True)})
     def check_detached_generation_status(job_id):
@@ -120,6 +133,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.check_detached_generation(job_id)
 
     @app.route("/v1/check_generation_status/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @convert_to_submission_id
     @requires_submission_perms('reader')
     @use_kwargs({'file_type': webargs_fields.String(
@@ -132,22 +146,26 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.check_generation(submission, file_type)
 
     @app.route("/v1/complete_generation/<generation_id>/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     def complete_generation(generation_id):
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
         return file_manager.complete_generation(generation_id)
 
     @app.route("/v1/get_obligations/", methods=["POST"])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @convert_to_submission_id
     @requires_submission_perms('reader')
     def get_obligations(submission):
         return JsonResponse.create(StatusCode.OK, get_submission_stats(submission.submission_id))
 
     @app.route("/v1/submission/<int:submission_id>/narrative", methods=['GET'])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_submission_perms('reader')
     def get_submission_narratives(submission):
         return narratives_for_submission(submission)
 
     @app.route("/v1/submission/<int:submission_id>/narrative", methods=['POST'])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_submission_perms('writer')
     def post_submission_narratives(submission):
         json = request.json or {}
@@ -157,6 +175,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return update_narratives(submission, json)
 
     @app.route("/v1/submission/<int:submission_id>/report_url", methods=['POST'])
+    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @use_kwargs({
         'warning': webargs_fields.Bool(),
         'file_type': webargs_fields.String(
