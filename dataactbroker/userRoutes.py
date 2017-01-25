@@ -16,33 +16,35 @@ def add_user_routes(app, system_email, bcrypt):
     """
 
     @app.route("/v1/list_user_emails/", methods=["GET"])
-    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     def list_user_emails_route():
         """ list all users """
+        logger.info('ASHIK_DEBUG V1: Calling list_users route')
         return list_user_emails()
 
     @app.route("/v1/current_user/", methods=["GET"])
-    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     def current_user():
         """ gets the current user information """
+        logger.info('ASHIK_DEBUG V1: Calling list_users route')
         return JsonResponse.create(StatusCode.OK, json_for_user(g.user))
 
     @app.route("/v1/set_skip_guide/", methods=["POST"])
-    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     def set_skip_guide():
         """ Sets skip_guide param for current user """
+        logger.info('ASHIK_DEBUG V1: Calling list_users route')
         account_manager = AccountHandler(request, bcrypt=bcrypt)
         return account_manager.set_skip_guide()
 
     @app.route("/v1/email_users/", methods=["POST"])
-    logger.info('ASHIK_DEBUG V1: Calling list_users route')
     @requires_login
     def email_users():
         """
         Sends email notifications to users that their submission is ready for review & publish viewing
         """
+        logger.info('ASHIK_DEBUG V1: Calling list_users route')
         account_manager = AccountHandler(request, bcrypt=bcrypt)
         return account_manager.email_users(system_email)
+
+
