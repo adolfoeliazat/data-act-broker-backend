@@ -119,8 +119,8 @@ def generate_e_file(task, submission_id, job_id, timestamped_name, upload_file_n
         # Add rows to database here.
         # TODO: This is a temporary solution until loading from SAM's SFTP has been resolved
         for row in rows:
-            print(row._asdict)
-            session.merge(ExecutiveCompensation(**row._asdict))
+            print(fileE.row_to_dict(row))
+            session.merge(ExecutiveCompensation(**row))
             break
         session.commit()
 

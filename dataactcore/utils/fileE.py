@@ -102,3 +102,17 @@ def retrieve_rows(duns_list):
     else:
         logger.error("Invalid sam config")
         return []
+
+
+def row_to_dict(row):
+    fields = ['AwardeeOrRecipientUniqueIdentifier', 'UltimateParentUniqueIdentifier', 'UltimateParentLegalEntityName',
+              'HighCompOfficer1FullName', 'HighCompOfficer1Amount', 'HighCompOfficer2FullName',
+              'HighCompOfficer2Amount', 'HighCompOfficer3FullName', 'HighCompOfficer3Amount',
+              'HighCompOfficer4FullName', 'HighCompOfficer4Amount', 'HighCompOfficer5FullName',
+              'HighCompOfficer5Amount']
+
+    row_dict = {}
+
+    for field in fields:
+        row_dict[field] = getattr(row, field)
+    return row_dict
