@@ -120,7 +120,6 @@ def generate_e_file(task, submission_id, job_id, timestamped_name, upload_file_n
         # TODO: This is a temporary solution until loading from SAM's SFTP has been resolved
         for row in rows:
             session.merge(ExecutiveCompensation(**fileE.row_to_dict(row)))
-            break
         session.commit()
 
         write_csv(timestamped_name, upload_file_name, is_local, fileE.Row._fields, rows)
