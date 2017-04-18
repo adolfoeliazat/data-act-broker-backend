@@ -114,5 +114,6 @@ def row_to_dict(row):
     row_dict = {}
 
     for field in fields:
-        row_dict[field] = getattr(row, field)
+        value = getattr(row, field)
+        row_dict[field] = value if not value else str(value)
     return row_dict
