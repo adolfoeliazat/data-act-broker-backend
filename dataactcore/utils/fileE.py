@@ -5,6 +5,9 @@ from operator import attrgetter
 from suds.client import Client
 
 from dataactcore.config import CONFIG_BROKER
+from dataactcore.models.validationModels import FileColumn
+from dataactcore.interfaces.db import GlobalDB
+from dataactcore.models.lookups import FILE_TYPE_DICT
 
 
 logger = logging.getLogger(__name__)
@@ -105,15 +108,14 @@ def retrieve_rows(duns_list):
 
 
 def row_to_dict(row):
-    fields = ['AwardeeOrRecipientUniqueIdentifier', 'UltimateParentUniqueIdentifier', 'UltimateParentLegalEntityName',
-              'HighCompOfficer1FullName', 'HighCompOfficer1Amount', 'HighCompOfficer2FullName',
-              'HighCompOfficer2Amount', 'HighCompOfficer3FullName', 'HighCompOfficer3Amount',
-              'HighCompOfficer4FullName', 'HighCompOfficer4Amount', 'HighCompOfficer5FullName',
-              'HighCompOfficer5Amount']
-
+    sess = GlobalDB.db().session
+    col_names = sess.query(FileColumn.name, FileColumn.name_short).\
+        filter(FileColumn.file_id == FILE_TYPE_DICT['executive_compensation']).all()
+    long_to_short_dict = {row.name: row.name_short for row in col_names}
     row_dict = {}
 
-    for field in fields:
+    for field in row._fields:
+        key = long_to_short_dict[field.lower()]
         value = getattr(row, field)
-        row_dict[field] = value if not value else str(value)
+        row_dict[key] = value if not value else str(value)
     return row_dict
