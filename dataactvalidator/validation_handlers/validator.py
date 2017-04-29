@@ -159,6 +159,7 @@ def cross_validate_sql(rules, submission_id, short_to_long_dict, first_file, sec
     conn = GlobalDB.db().connection
 
     for rule in rules:
+        logger.debug("DEBUG: Running SQL Rule => " + rule.query_name)
         failed_rows = conn.execute(
             rule.rule_sql.format(submission_id))
         if failed_rows.rowcount:
