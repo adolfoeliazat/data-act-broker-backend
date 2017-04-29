@@ -400,6 +400,8 @@ class ValidationManager:
             # send comboRules to validator.crossValidate sql
             failures = cross_validate_sql(combo_rules.all(), submission_id, self.short_to_long_dict, first_file.id,
                                           second_file.id)
+
+            logger.debug("DEBUG: Finished cross file")
             # get error file name
             report_filename = self.get_file_name(report_file_name(submission_id, False, first_file.name,
                                                                   second_file.name))
@@ -410,6 +412,7 @@ class ValidationManager:
             with self.get_writer(region_name, bucket_name, report_filename, self.crossFileReportHeaders) as writer, \
                     self.get_writer(region_name, bucket_name, warning_report_filename, self.crossFileReportHeaders) as \
                     warning_writer:
+                logger.debug("DEBUG: Writing failures")
                 for failure in failures:
                     if failure[9] == RULE_SEVERITY_DICT['fatal']:
                         writer.write(failure[0:7])
@@ -418,9 +421,11 @@ class ValidationManager:
                     error_list.record_row_error(job_id, "cross_file",
                                                 failure[0], failure[3], failure[5], failure[6],
                                                 failure[7], failure[8], severity_id=failure[9])
+                logger.debug("DEBUG: Calling finish batch")
                 writer.finish_batch()
                 warning_writer.finish_batch()
 
+        logger.debug("DEBUG: Writing error rows")
         error_list.write_all_row_errors(job_id)
         mark_job_status(job_id, "finished")
         logger.info('VALIDATOR_INFO: Completed run_cross_validation on submission_id: %s', submission_id)

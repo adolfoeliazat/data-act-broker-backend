@@ -172,6 +172,7 @@ def cross_validate_sql(rules, submission_id, short_to_long_dict, first_file, sec
 
             # materialize as we'll iterate over the failed_rows twice
             failed_rows = list(failed_rows)
+            logger.debug("DEBUG: Getting flex field data")
             flex_data = relevant_cross_flex_data(failed_rows, submission_id, [first_file, second_file])
 
             for row in failed_rows:
