@@ -74,7 +74,8 @@ def add_file_routes(app, create_credentials, is_local, server_path):
     @use_kwargs({'upload_id': webargs_fields.Int(required=True)})
     def fail_submission(upload_id):
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
-        return file_manager.fail_validation(upload_id)
+        file_manager.fail_validation(upload_id)
+        delete_submission(upload_id)
 
     @app.route("/v1/check_status/", methods=["POST"])
     @convert_to_submission_id
