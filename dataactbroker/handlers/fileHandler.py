@@ -479,7 +479,7 @@ class FileHandler:
                 if "numFound='0'" in get_xml_response_content(api_url):
                     sess = GlobalDB.db().session
                     # No results found, skip validation and mark as finished
-                    mark_job_status(job.job_id, "finished")
+                    mark_job_status(job.job_id, "finished", skip_check=True)
                     job.filename = None
 
                     if val_job is not None:
