@@ -71,13 +71,12 @@ def add_file_routes(app, create_credentials, is_local, server_path):
 
     @app.route("/v1/fail_job/", methods=["POST"])
     @requires_login
-    @use_kwargs({'upload_id': webargs_fields.Int(required=True)})
-    def fail_submission(upload_id):
+    @convert_to_submission_id
+    def fail_submission(submission):
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
-        file_manager.fail_validation(upload_id)
-        sess = GlobalDB.db().session
-        submission = sess.query(Submission).filter(Submission.submission_id == upload_id).one()
-        delete_submission(submission)
+        file_manager.fail_validation(submission.submission_id)
+        if not none:
+            delete_submission(submission)
         #took the delete function from below
         # if submission.publish_status_id != PUBLISH_STATUS_DICT['unpublished']:
         #     return JsonResponse.error(ValueError("Submissions that have been certified cannot be deleted"),
