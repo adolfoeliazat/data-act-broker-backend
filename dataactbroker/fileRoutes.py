@@ -77,7 +77,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
         file_manager.fail_validation(submission.submission_id)
         if not None:
-            delete_submission(submission.submission_id)
+            delete_submission_helper(submission.submission)
         #took the delete function from below
         # if submission.publish_status_id != PUBLISH_STATUS_DICT['unpublished']:
         #     return JsonResponse.error(ValueError("Submissions that have been certified cannot be deleted"),
@@ -259,21 +259,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
             return JsonResponse.error(ValueError("Submissions that have been certified cannot be deleted"),
                                       StatusCode.CLIENT_ERROR)
 
-        sess = GlobalDB.db().session
-
-        # Check if the submission has any jobs that are currently running, if so, do not allow deletion
-        jobs = sess.query(Job).filter(Job.submission_id == submission.submission_id,
-                                      Job.job_status_id == JOB_STATUS_DICT['running']).all()
-
-        if jobs:
-            return JsonResponse.error(ValueError("Submissions with running jobs cannot be deleted"),
-                                      StatusCode.CLIENT_ERROR)
-
-        sess.query(Submission).filter(Submission.submission_id == submission.submission_id).delete(
-            synchronize_session=False)
-        sess.expire_all()
-
-        return JsonResponse.create(StatusCode.OK, {"message": "Success"})
+        delete_submission_helper(submission)
 
     @app.route("/v1/check_year_quarter/", methods=["GET"])
     @requires_login
@@ -367,4 +353,21 @@ def find_existing_submissions_in_period(sess, cgac_code, reporting_fiscal_year,
             "submissionId": submission_query[0].submission_id
         }
         return JsonResponse.create(StatusCode.CLIENT_ERROR, data)
+    return JsonResponse.create(StatusCode.OK, {"message": "Success"})
+
+def delete_submission_helper(submission):
+    sess = GlobalDB.db().session
+
+    # Check if the submission has any jobs that are currently running, if so, do not allow deletion
+    jobs = sess.query(Job).filter(Job.submission_id == submission.submission_id,
+                                  Job.job_status_id == JOB_STATUS_DICT['running']).all()
+
+    if jobs:
+        return JsonResponse.error(ValueError("Submissions with running jobs cannot be deleted"),
+                                  StatusCode.CLIENT_ERROR)
+
+    sess.query(Submission).filter(Submission.submission_id == submission.submission_id).delete(
+        synchronize_session=False)
+    sess.expire_all()
+
     return JsonResponse.create(StatusCode.OK, {"message": "Success"})
