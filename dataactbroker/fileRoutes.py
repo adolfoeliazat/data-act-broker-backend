@@ -73,6 +73,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
     @requires_login
     @convert_to_submission_id
     def fail_submission(submission):
+        submission_id = submision.submission_id
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
         file_manager.fail_validation(submission.submission_id)
         if not none:
