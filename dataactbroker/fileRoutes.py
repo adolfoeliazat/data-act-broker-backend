@@ -75,7 +75,8 @@ def add_file_routes(app, create_credentials, is_local, server_path):
     def fail_submission(upload_id):
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
         file_manager.fail_validation(upload_id)
-        delete_submission(upload_id)
+        submission = sess.query(Submission).filter(Submission.submission_id = upload_id)
+        delete_submission(submission)
 
     @app.route("/v1/check_status/", methods=["POST"])
     @convert_to_submission_id
