@@ -77,7 +77,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
         file_manager.fail_validation(submission.submission_id)
         if not None:
-            delete_submission_helper(submission.submission)
+            delete_submission_helper(submission)
         #took the delete function from below
         # if submission.publish_status_id != PUBLISH_STATUS_DICT['unpublished']:
         #     return JsonResponse.error(ValueError("Submissions that have been certified cannot be deleted"),
