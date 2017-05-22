@@ -70,14 +70,21 @@ def add_file_routes(app, create_credentials, is_local, server_path):
         return file_manager.finalize(upload_id)
 
     @app.route("/v1/fail_job/", methods=["POST"])
-    @requires_login
-    @convert_to_submission_id
-    def fail_submission(submission):
-        submission_id = submission.submission_id
+    @use_kwargs({'submission_id': webargs_fields.Int(required=True)})
+    def fail_submission(submission_id):
+        print(submission_id)
+        sess = GlobalDB.db().session
+        submission = sess.query(Submission).filter(Submission.submission_id == submission_id).one()
         file_manager = FileHandler(request, is_local=is_local, server_path=server_path)
-        file_manager.fail_validation(submission.submission_id)
+        
+        jobs = sess.query(Job).filter(Job.submission_id == submission_id).all()
+
+        for job in jobs:
+            job.job_status_id = JOB_STATUS_DICT['failed']
+        sess.commit()
+
         if not None:
-            delete_submission_helper(submission)
+            return delete_submission_helper(submission)
         #took the delete function from below
         # if submission.publish_status_id != PUBLISH_STATUS_DICT['unpublished']:
         #     return JsonResponse.error(ValueError("Submissions that have been certified cannot be deleted"),
@@ -259,7 +266,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
             return JsonResponse.error(ValueError("Submissions that have been certified cannot be deleted"),
                                       StatusCode.CLIENT_ERROR)
 
-        delete_submission_helper(submission)
+        return delete_submission_helper(submission)
 
     @app.route("/v1/check_year_quarter/", methods=["GET"])
     @requires_login
