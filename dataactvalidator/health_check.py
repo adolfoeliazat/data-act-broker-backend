@@ -26,6 +26,9 @@ def create_app():
 
 def run_app():
     """Run the application."""
+    json_dict = {'test_column': 'test_value'}
+    logger.debug(json_dict)
+
     flask_app = create_app()
     flask_app.run(
         threaded=True,
