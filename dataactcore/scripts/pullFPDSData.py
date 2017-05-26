@@ -5,6 +5,7 @@ import xmltodict
 
 import datetime
 import re
+import threading
 
 from dataactcore.logging import configure_logging
 
@@ -1106,11 +1107,26 @@ def main():
         # clear out table
         sess.query(DetachedAwardProcurement).delete()
 
+        # turn off autoflush for threading because we don't need an updated DB here (only querying CGAC)
+        # and it might interfere with the sess.add() call if it's on
+        sess.autoflush = False
+        thread_list = []
         # loop through and check all award types
         for award_type in award_types_award:
-            get_data("award", award_type, now, sess)
+            t = threading.Thread(target=get_data, args=("award", award_type, now, sess))
+            thread_list.append(t)
+            t.start()
         for award_type in award_types_idv:
-            get_data("IDV", award_type, now, sess)
+            t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess))
+            thread_list.append(t)
+            t.start()
+
+        # don't continue until all threads are done
+        for t in thread_list:
+            t.join()
+
+        # turn autoflush back on now that we're done with threading because we like autoflush
+        sess.autoflush = True
 
         last_update = sess.query(FPDSUpdate).one_or_none()
 
@@ -1136,10 +1152,18 @@ def main():
                 "No last_update date present, please run the script with the -a flag to generate an initial dataset")
 
         # loop through and check all award types
+        thread_list = []
         for award_type in award_types_award:
-            get_data("award", award_type, now, sess, last_update)
+            t = threading.Thread(target=get_data, args=("award", award_type, now, sess, last_update))
+            thread_list.append(t)
+            t.start()
         for award_type in award_types_idv:
-            get_data("IDV", award_type, now, sess, last_update)
+            t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess, last_update))
+            thread_list.append(t)
+            t.start()
+
+        for t in thread_list:
+            t.join()
 
         # We also need to process the delete feed
         get_delete_data("award", now, sess, last_update)
@@ -1150,7 +1174,6 @@ def main():
         sess.commit()
     # TODO add a correct start date for "all" so we don't get ALL the data or too little of the data
     # TODO fine-tune indexing
-    # TODO threading
 
 if __name__ == '__main__':
     with create_app().app_context():
