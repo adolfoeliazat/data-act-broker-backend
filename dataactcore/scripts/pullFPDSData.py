@@ -717,7 +717,7 @@ def calculate_remaining_fields(obj, sess):
             obj['awarding_agency_name'] = agency_data.agency_name
         else:
             logger.info('WARNING: MissingSubtierCGAC: The awarding sub-tier cgac_code: %s does not exist in cgac table.'
-                        'The FPDS-provided awarding sub-tier agency name (if given) for this cgac_code is %s.'
+                        ' The FPDS-provided awarding sub-tier agency name (if given) for this cgac_code is %s. '
                         'The award has been loaded with awarding_agency_code 999.',
                         obj['awarding_sub_tier_agency_c'], obj['awarding_sub_tier_agency_n'])
             obj['awarding_agency_code'] = '999'
@@ -731,8 +731,8 @@ def calculate_remaining_fields(obj, sess):
             obj['funding_agency_code'] = agency_data.cgac_code
             obj['funding_agency_name'] = agency_data.agency_name
         else:
-            logger.info('WARNING: MissingSubtierCGAC: The funding sub-tier cgac_code: %s does not exist in cgac table.'
-                        'The FPDS-provided funding sub-tier agency name (if given) for this cgac_code is %s.'
+            logger.info('WARNING: MissingSubtierCGAC: The funding sub-tier cgac_code: %s does not exist in cgac table. '
+                        'The FPDS-provided funding sub-tier agency name (if given) for this cgac_code is %s. '
                         'The award has been loaded with funding_agency_code 999.',
                         obj['funding_sub_tier_agency_co'], obj['funding_sub_tier_agency_na'])
             obj['funding_agency_code'] = '999'
@@ -1084,8 +1084,8 @@ def main():
     parser.add_argument('-l', '--latest', help='Get by last_mod_date stored in DB', action='store_true')
     args = parser.parse_args()
 
-    award_types_award = ["BPA Call", "Purchase Order", "Delivery Order", "Definitive Contract"]
-    award_types_idv = ["GWAC", "IDC", "FSS", "BOA", "BPA"]
+    award_types_award = ["BPA Call", "Definitive Contract", "Purchase Order", "Delivery Order"]
+    award_types_idv = ["GWAC", "BOA", "BPA", "FSS", "IDC"]
 
     if args.all:
         logger.info("Starting at: " + str(datetime.datetime.now()))
@@ -1096,13 +1096,14 @@ def main():
         # and it might interfere with the sess.add() call if it's on
         sess.autoflush = False
         thread_list = []
-        # loop through and check all award types
-        for award_type in award_types_award:
-            t = threading.Thread(target=get_data, args=("award", award_type, now, sess))
+        # loop through and check all award types, check IDV stuff first because it generally has less content
+        # so the threads will actually leave earlier and can be terminated in the loop
+        for award_type in award_types_idv:
+            t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess), name=award_type)
             thread_list.append(t)
             t.start()
-        for award_type in award_types_idv:
-            t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess))
+        for award_type in award_types_award:
+            t = threading.Thread(target=get_data, args=("award", award_type, now, sess), name=award_type)
             thread_list.append(t)
             t.start()
 
@@ -1136,14 +1137,15 @@ def main():
             raise ValueError(
                 "No last_update date present, please run the script with the -a flag to generate an initial dataset")
 
-        # loop through and check all award types
         thread_list = []
-        for award_type in award_types_award:
-            t = threading.Thread(target=get_data, args=("award", award_type, now, sess, last_update))
+        # loop through and check all award types, check IDV stuff first because it generally has less content
+        # so the threads will actually leave earlier and can be terminated in the loop
+        for award_type in award_types_idv:
+            t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess, last_update), name=award_type)
             thread_list.append(t)
             t.start()
-        for award_type in award_types_idv:
-            t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess, last_update))
+        for award_type in award_types_award:
+            t = threading.Thread(target=get_data, args=("award", award_type, now, sess, last_update), name=award_type)
             thread_list.append(t)
             t.start()
 
@@ -1151,8 +1153,8 @@ def main():
             t.join()
 
         # We also need to process the delete feed
-        get_delete_data("award", now, sess, last_update)
         get_delete_data("IDV", now, sess, last_update)
+        get_delete_data("award", now, sess, last_update)
         sess.query(FPDSUpdate).update({"update_date": now}, synchronize_session=False)
 
         logger.info("Ending at: " + str(datetime.datetime.now()))
