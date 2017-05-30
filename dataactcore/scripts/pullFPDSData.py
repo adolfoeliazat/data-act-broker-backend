@@ -941,7 +941,7 @@ def process_delete_data(data, atom_type):
     return unique_string
 
 
-def process_and_add(data, contract_type, sess, last_run=None):
+def process_and_add(data, contract_type, award_type, sess, last_run=None):
     """ start the processing for data and add it to the DB """
     i = 0
     # if a date that the script was last successfully run is not provided, assume we're inserting for the first
@@ -949,7 +949,7 @@ def process_and_add(data, contract_type, sess, last_run=None):
     if not last_run:
         for value in data:
             if i % 5000 == 0:
-                logger.info('inserting row %s for current batch', i)
+                logger.info('inserting row %s for current batch for %s: %s feed', i, contract_type, award_type)
 
             tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
             tmp_award = DetachedAwardProcurement(**tmp_obj)
@@ -960,7 +960,7 @@ def process_and_add(data, contract_type, sess, last_run=None):
     else:
         for value in data:
             if i % 5000 == 0:
-                logger.info('inserting row %s for current batch', i)
+                logger.info('inserting row %s for current batch for %s: %s feed', i, contract_type, award_type)
 
             tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
             insert_statement = insert(DetachedAwardProcurement).values(**tmp_obj).\
@@ -1018,8 +1018,8 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
             # a memory error. This can be done inside the 100 tracker because 100,000 is divisible by 100
             # so we don't have to check this if statement every time. Don't process on row 0
             if i % 100000 == 0 and i != 0:
-                logger.info("Processing next 100,000 records")
-                process_and_add(data, contract_type, sess, last_run)
+                logger.info("Processing next 100,000 records for %s: %s feed", contract_type, award_type)
+                process_and_add(data, contract_type, award_type, sess, last_run)
                 data = []
 
         # if we got less than 10 records, we can stop calling the feed
@@ -1029,7 +1029,7 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
     logger.info("Total entries in %s: %s feed: " + str(i), contract_type, award_type)
 
     # insert whatever is left
-    process_and_add(data, contract_type, sess, last_run)
+    process_and_add(data, contract_type, award_type, sess, last_run)
     logger.info("processed " + contract_type + ": " + award_type + " data")
 
 
