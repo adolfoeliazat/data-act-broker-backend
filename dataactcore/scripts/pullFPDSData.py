@@ -941,32 +941,23 @@ def process_delete_data(data, atom_type):
     return unique_string
 
 
-def process_and_add(data, contract_type, award_type, sess, last_run=None):
+def process_and_add(data, contract_type, sess, last_run=None):
     """ start the processing for data and add it to the DB """
-    i = 0
     # if a date that the script was last successfully run is not provided, assume we're inserting for the first
     # time so we can just add the model rather than making sure it doesn't exist yet
     if not last_run:
         for value in data:
-            if i % 5000 == 0:
-                logger.info('inserting row %s for current batch for %s: %s feed', i, contract_type, award_type)
-
             tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
             tmp_award = DetachedAwardProcurement(**tmp_obj)
             sess.add(tmp_award)
-            i += 1
     # if a date that the script was last successfully run is provided, we're inserting over something that already
     # exists so we have to check for conflicts and update when there is one
     else:
         for value in data:
-            if i % 5000 == 0:
-                logger.info('inserting row %s for current batch for %s: %s feed', i, contract_type, award_type)
-
             tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
             insert_statement = insert(DetachedAwardProcurement).values(**tmp_obj).\
                 on_conflict_do_update(index_elements=['detached_award_proc_unique'], set_=tmp_obj)
             sess.execute(insert_statement)
-            i += 1
 
 
 def get_data(contract_type, award_type, now, sess, last_run=None):
@@ -1010,17 +1001,13 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
             data.append(ld)
             i += 1
 
-        # Log which one we're on so we can keep track of how far we are (different numbers for different pulls)
-        if i % log_interval == 0:
-            logger.info("On line " + str(i) + " of get %s: %s feed", contract_type, award_type)
-
-            # every 100,000 records, add the data to the session and clear the data array so we don't run into
-            # a memory error. This can be done inside the 100 tracker because 100,000 is divisible by 100
-            # so we don't have to check this if statement every time. Don't process on row 0
-            if i % 100000 == 0 and i != 0:
-                logger.info("Processing next 100,000 records for %s: %s feed", contract_type, award_type)
-                process_and_add(data, contract_type, award_type, sess, last_run)
-                data = []
+        # Log which one we're on so we can keep track of how far we are, insert into DB ever 1k lines
+        if i % 1000 == 0 and i != 0:
+            logger.info("Retrieved %s lines of get %s: %s feed, writing next 1,000 to DB", i, contract_type, award_type)
+            process_and_add(data, contract_type, sess, last_run)
+            data = []
+            logger.info("Successfully inserted 1,000 lines of get %s: %s feed, continuing feed retrieval",
+                        contract_type, award_type)
 
         # if we got less than 10 records, we can stop calling the feed
         if len(listed_data) < 10:
@@ -1029,7 +1016,8 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
     logger.info("Total entries in %s: %s feed: " + str(i), contract_type, award_type)
 
     # insert whatever is left
-    process_and_add(data, contract_type, award_type, sess, last_run)
+    logger.info("Processing remaining lines for %s: %s feed", contract_type, award_type)
+    process_and_add(data, contract_type, sess, last_run)
     logger.info("processed " + contract_type + ": " + award_type + " data")
 
 
