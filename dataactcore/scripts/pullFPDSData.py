@@ -964,11 +964,8 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
     """ get the data from the atom feed based on contract/award type and the last time the script was run """
     data = []
     yesterday = now - datetime.timedelta(days=1)
-    log_interval = 1000
     # if a date that the script was last successfully run is not provided, get all data
     if not last_run:
-        # we want to log less often for a "get all" run
-        log_interval = 10000
         # params = 'SIGNED_DATE:[2015/10/01,'+ yesterday.strftime('%Y/%m/%d') + '] '
         params = 'SIGNED_DATE:[2016/10/01,' + yesterday.strftime('%Y/%m/%d') + '] '
         # params = 'SIGNED_DATE:[2017/03/01,'+ yesterday.strftime('%Y/%m/%d') + '] '
