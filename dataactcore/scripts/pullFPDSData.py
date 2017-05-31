@@ -967,8 +967,8 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
     # if a date that the script was last successfully run is not provided, get all data
     if not last_run:
         # params = 'SIGNED_DATE:[2015/10/01,'+ yesterday.strftime('%Y/%m/%d') + '] '
-        params = 'SIGNED_DATE:[2016/10/01,' + yesterday.strftime('%Y/%m/%d') + '] '
-        # params = 'SIGNED_DATE:[2017/03/01,'+ yesterday.strftime('%Y/%m/%d') + '] '
+        # params = 'SIGNED_DATE:[2016/10/01,' + yesterday.strftime('%Y/%m/%d') + '] '
+        params = 'SIGNED_DATE:[2017/05/01,'+ yesterday.strftime('%Y/%m/%d') + '] '
     # if a date that the script was last successfully run is provided, get data since that date
     else:
         last_run_date = last_run.update_date
