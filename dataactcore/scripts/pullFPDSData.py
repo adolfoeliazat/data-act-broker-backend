@@ -960,7 +960,7 @@ def process_and_add(data, contract_type, sess, last_run=None):
             sess.execute(insert_statement)
 
 
-def get_data(contract_type, award_type, now, sess, last_run=None):
+def get_data(contract_type, award_type, now, sess, last_run=None, split_num=None):
     """ get the data from the atom feed based on contract/award type and the last time the script was run """
     data = []
     yesterday = now - datetime.timedelta(days=1)
@@ -980,9 +980,14 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
     # params = 'PIID:"0046"+REF_IDV_PIID:"W56KGZ15A6000"'
 
     i = 0
+    loops = 0
+    # if we're splitting the thread into 2, the starting i value is the number passed * 10 - 10 (1 or 2, so 0 or 10)
+    if split_num:
+        i = split_num * 10 - 10
     logger.info('Starting get feed: ' + feed_url + params + 'CONTRACT_TYPE:"' + contract_type.upper() +
                 '" AWARD_TYPE:"' + award_type + '"')
     while True:
+        loops += 1
         resp = requests.get(feed_url + params + 'CONTRACT_TYPE:"' + contract_type.upper() + '" AWARD_TYPE:"' +
                             award_type + '"&start=' + str(i), timeout=60)
         resp_data = xmltodict.parse(resp.text, process_namespaces=True,
@@ -998,24 +1003,57 @@ def get_data(contract_type, award_type, now, sess, last_run=None):
             data.append(ld)
             i += 1
 
+        # if we're splitting the thread, we're basically playing leapfrog so we need to skip the next 10
+        if split_num:
+            i += 10
+
         # Log which one we're on so we can keep track of how far we are, insert into DB ever 1k lines
-        if i % 1000 == 0 and i != 0:
-            logger.info("Retrieved %s lines of get %s: %s feed, writing next 1,000 to DB", i, contract_type, award_type)
+        if loops % 100 == 0 and loops != 0:
+            if split_num:
+                records = i - (loops * 10)
+                # we need to take 10 records out if we're on thread 2 because we started i 10 ahead
+                if split_num == 2:
+                    records -= 10
+
+                logger.info("Retrieved %s lines of get %s: %s feed %s, writing next 1,000 to DB", records,
+                            contract_type, award_type, split_num)
+            else:
+                logger.info("Retrieved %s lines of get %s: %s feed, writing next 1,000 to DB", i, contract_type,
+                            award_type)
             process_and_add(data, contract_type, sess, last_run)
             data = []
-            logger.info("Successfully inserted 1,000 lines of get %s: %s feed, continuing feed retrieval",
-                        contract_type, award_type)
+
+            if split_num:
+                logger.info("Successfully inserted 1,000 lines of get %s: %s feed %s, continuing feed retrieval",
+                            contract_type, award_type, split_num)
+            else:
+                logger.info("Successfully inserted 1,000 lines of get %s: %s feed, continuing feed retrieval",
+                            contract_type, award_type)
 
         # if we got less than 10 records, we can stop calling the feed
         if len(listed_data) < 10:
             break
 
-    logger.info("Total entries in %s: %s feed: " + str(i), contract_type, award_type)
+    if split_num:
+        records = i - (loops * 10)
+        # we need to take 10 records out if we're on thread 2 because we started i 10 ahead
+        if split_num == 2:
+            records -= 10
+        logger.info("Total entries in %s: %s feed %s: " + str(records), contract_type, award_type, split_num)
+    else:
+        logger.info("Total entries in %s: %s feed: " + str(i), contract_type, award_type)
 
     # insert whatever is left
-    logger.info("Processing remaining lines for %s: %s feed", contract_type, award_type)
+    if split_num:
+        logger.info("Processing remaining lines for %s: %s feed %s", contract_type, award_type, split_num)
+    else:
+        logger.info("Processing remaining lines for %s: %s feed", contract_type, award_type)
     process_and_add(data, contract_type, sess, last_run)
-    logger.info("processed " + contract_type + ": " + award_type + " data")
+
+    if split_num:
+        logger.info("processed " + contract_type + ": " + award_type + " thread " + str(split_num) + " data")
+    else:
+        logger.info("processed " + contract_type + ": " + award_type + " data")
 
 
 def get_delete_data(contract_type, now, sess, last_run):
@@ -1103,9 +1141,19 @@ def main():
             thread_list.append(t)
             t.start()
         for award_type in award_types_award:
-            t = threading.Thread(target=get_data, args=("award", award_type, now, sess), name=award_type)
-            thread_list.append(t)
-            t.start()
+            if award_type == "Delivery Order":
+                t1 = threading.Thread(target=get_data, args=("award", award_type, now, sess), kwargs={'split_num': 1},
+                                      name=award_type)
+                t2 = threading.Thread(target=get_data, args=("award", award_type, now, sess), kwargs={'split_num': 2},
+                                      name=award_type)
+                thread_list.append(t1)
+                thread_list.append(t2)
+                t1.start()
+                t2.start()
+            else:
+                t = threading.Thread(target=get_data, args=("award", award_type, now, sess), name=award_type)
+                thread_list.append(t)
+                t.start()
 
         # don't continue until all threads are done
         for t in thread_list:
