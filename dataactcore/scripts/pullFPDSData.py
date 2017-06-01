@@ -1144,6 +1144,13 @@ def main():
             t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess, last_update), name=award_type)
             thread_list.append(t)
             t.start()
+
+        # join the threads between types and then start with a fresh set of threads. We don't want to overtax
+        # the CPU
+        for t in thread_list:
+            t.join()
+
+        thread_list = []
         for award_type in award_types_award:
             t = threading.Thread(target=get_data, args=("award", award_type, now, sess, last_update), name=award_type)
             thread_list.append(t)
