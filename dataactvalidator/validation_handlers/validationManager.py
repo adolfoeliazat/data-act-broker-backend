@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import and_, or_
 from sqlalchemy.exc import SQLAlchemyError
+from collections import namedtuple
 
 from dataactcore.config import CONFIG_BROKER
 from dataactcore.interfaces.db import GlobalDB
@@ -34,6 +35,9 @@ from dataactcore.models.validationModels import RuleSql
 
 
 logger = logging.getLogger(__name__)
+
+
+AgencyInfo = namedtuple('AgencyInfo', ['name', 'code'])
 
 
 class ValidationManager:
@@ -482,19 +486,42 @@ class ValidationManager:
                                                                   second_file.name))
             warning_report_filename = self.get_file_name(report_file_name(submission_id, True, first_file.name,
                                                                           second_file.name))
-
+            
             # loop through failures to create the error report
             with self.get_writer(region_name, bucket_name, report_filename, self.crossFileReportHeaders) as writer, \
                     self.get_writer(region_name, bucket_name, warning_report_filename, self.crossFileReportHeaders) as \
                     warning_writer:
-                for failure in failures:
+                def find_file(files, *letters):
+                    for f in files:
+                        if f.letter in letters:
+                            return f
+                files = {first_file, second_file}
+                c_file = find_file(files, 'C')
+                d_file = find_file(files, 'D1', 'D2')
+                have_crossfiles = all(lambda f: f.crossfile, files)
+                if c_file and d_file and have_crossfiles:
+                    sess = GlobalDB.db().session
+                    data = {sess.query(f.model).first() for f in files}
+                    all_award_information = sess.query(AwardFinancialAssistance).all()
+                    for datum in data:
+                        for award_information in all_award_information:
+                            if datum.submission_id == award_information.submission_id:
+                                agency_info = AgencyInfo(
+                                    award_information[0].awarding_sub_tier_agency_n,
+                                    award_information[0].awarding_sub_tier_agency_c
+                                ))
+
+                for failure in failures:                    
                     if failure[9] == RULE_SEVERITY_DICT['fatal']:
                         writer.write(failure[0:7])
                     if failure[9] == RULE_SEVERITY_DICT['warning']:
+                        warning_writer.write("subtier agency name",agency_info.name)
+                        warning_writer.write("subtier agency code",agency_info.code)
                         warning_writer.write(failure[0:7])
                     error_list.record_row_error(job_id, "cross_file",
                                                 failure[0], failure[3], failure[5], failure[6],
                                                 failure[7], failure[8], severity_id=failure[9])
+                    
                 # write the last unfinished batch
                 writer.finish_batch()
                 warning_writer.finish_batch()
