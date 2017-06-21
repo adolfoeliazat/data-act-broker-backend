@@ -173,10 +173,16 @@ def add_file_routes(app, create_credentials, is_local, server_path):
             return JsonResponse.create(StatusCode.OK, data)
 
         # /v1/generateEF/
-        # Checks that all uploads are successful
+        # Checks that all uploads are successful and both D1 and D2 need to have 0 errors so this must == 2 not > 0
         generate_ef = sess.query(Job).filter(Job.submission_id == submission_id, Job.job_type_id == 4,
                                              Job.job_status_id == 4)
-        if generate_ef.count() > 0:
+        #need to check that cross file is done as well
+        validate_cross_file = sess.query(Job).filter(Job.submission_id == submission_id,
+                                                     Job.file_type_id.in_([4, 5]), Job.job_type_id == 2,
+                                                     Job.number_of_errors == 0, Job.file_size.isnot(None))
+
+        print(generate_ef.count())
+        if generate_ef.count() > 0 and validate_cross_file.count() == 2:
             data = {
                 "message": "The current progress of this submission ID is on /v1/generateEF/ page.",
                 "step": "4"
@@ -184,10 +190,7 @@ def add_file_routes(app, create_credentials, is_local, server_path):
             return JsonResponse.create(StatusCode.OK, data)
 
         # /v1/validateCrossFile/
-        validate_cross_file = sess.query(Job).filter(Job.submission_id == submission_id,
-                                                     Job.file_type_id.in_([4, 5]), Job.job_type_id == 2,
-                                                     Job.number_of_errors == 0, Job.file_size.isnot(None))
-        if validate_cross_file.count() > 0:
+        if validate_cross_file.count() == 2:
             data = {
                 "message": "The current progress of this submission ID is on /v1/validateCrossFile/ page.",
                 "step": "3"
