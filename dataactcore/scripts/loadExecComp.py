@@ -19,10 +19,6 @@ from dataactcore.config import CONFIG_BROKER
 
 logger = logging.getLogger(__name__)
 
-# Paramiko client configuration
-UseGSSAPI = True             # enable GSS-API / SSPI authentication
-DoGSSAPIKeyExchange = True
-
 REMOTE_SAM_DIR = '/current/SAM/6_EXECCOMP'
 # sftp -i SAMDATAProd -P 22 samdataprod04@66.77.18.174
 
@@ -30,7 +26,7 @@ REMOTE_SAM_DIR = '/current/SAM/6_EXECCOMP'
 def parse_sam_file(file, sess):
     logger.info("starting file " + str(file.name))
 
-    csv_file = os.path.splitext(os.path.basename(file.name))[0]
+    csv_file = os.path.splitext(os.path.basename(file.name))[0]+'.dat'
     zfile = zipfile.ZipFile(file.name)
 
     # can't use skipfooter, pandas' c engine doesn't work with skipfooter and the python engine doesn't work with dtype
@@ -136,23 +132,21 @@ if __name__ == '__main__':
         sess = GlobalDB.db().session
 
         if not local:
+            root_dir = CONFIG_BROKER["d_file_storage_path"]
             private_key, username, password, host, port = get_config()
             if None in (private_key, username, password):
                 logger.error("Missing config elements for connecting to SAM")
                 sys.exit(1)
 
-            my_key = paramiko.RSAKey.from_private_key(open(private_key), password=password)
-            transport = paramiko.Transport((host, port))
-            transport.connect(
-                hostkey=my_key,
+            client = paramiko.SSHClient()
+            client.load_system_host_keys()
+            client.connect(
+                hostname=host,
                 username=username,
-                gss_host=socket.getfqdn(host),
-                gss_auth=UseGSSAPI,
-                gss_kex=DoGSSAPIKeyExchange
+                password=password,
+                key_filename=private_key
             )
-
-            sftp = paramiko.SFTPClient.from_transport(transport)
-
+            sftp = client.open_sftp()
             # dirlist on remote host
             dirlist = sftp.listdir(REMOTE_SAM_DIR)
         else:
@@ -164,10 +158,20 @@ if __name__ == '__main__':
 
         if historic:
             for daily_file in sorted_daily_file_names:
-                file = open(os.path.join(root_dir, daily_file)) if local else sftp.file(''.join([REMOTE_SAM_DIR, '/', daily_file]))
+                if local:
+                    file = open(os.path.join(root_dir, daily_file))
+                else:
+                    file = open(os.path.join(root_dir, daily_file),'wb')
+                    sftp.getfo(''.join([REMOTE_SAM_DIR, '/', daily_file]),file)
                 parse_sam_file(file, sess)
+                file.close()
+                os.remove(os.path.join(root_dir, daily_file))
         elif not local:
-            parse_sam_file(sftp.file(''.join([REMOTE_SAM_DIR, '/', sorted_daily_file_names[-1]])), sess)
+            file = open(os.path.join(root_dir, sorted_daily_file_names[-1]),'wb')
+            sftp.getfo(''.join([REMOTE_SAM_DIR, '/', sorted_daily_file_names[-1]]),file)
+            parse_sam_file(file, sess)
+            file.close()
+            os.remove(os.path.join(root_dir, sorted_daily_file_names[-1]))
         else:
             parse_sam_file(open(os.path.join(root_dir, sorted_daily_file_names[-1])), sess)
 
