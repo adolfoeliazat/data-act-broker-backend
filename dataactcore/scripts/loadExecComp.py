@@ -23,7 +23,11 @@ REMOTE_SAM_DIR = '/current/SAM/6_EXECCOMP'
 
 
 def parse_sam_file(file, sess):
-    logger.info("starting file " + str(file.name))
+    logger.info(
+        {
+            'message': "Opening zip file " + str(file.name),
+            'filename': str(file.name),
+            'state':'open-zip'})
 
     csv_file = os.path.splitext(os.path.basename(file.name))[0]+'.dat'
     zfile = zipfile.ZipFile(file.name)
@@ -50,6 +54,11 @@ def parse_sam_file(file, sess):
     total_data = total_data[total_data.sam_extract != '4']
 
     # parse out executive compensation from row 90
+    logger.info(
+        {
+            'message': "Parsing executive compensation from file: " + str(file.name),
+            'filename': str(file.name),
+            'state':'parse-exec-comp'})
     lambda_func = (lambda ecs: pd.Series(list(parse_exec_comp(ecs).values())))
     parsed_data = total_data["exec_comp_str"].apply(lambda_func)
     parsed_data.columns = list(parse_exec_comp().keys())
@@ -64,6 +73,11 @@ def parse_sam_file(file, sess):
         del dataframe["sam_extract"]
 
     table_name = ExecutiveCompensation.__table__.name
+    logger.info(
+        {
+            'message': "Inserting data from file: " + str(file.name),
+            'filename': str(file.name),
+            'state':'insert-data'})
     insert_dataframe(add_data, table_name, sess.connection())
     for _, row in update_data.iterrows():
         sess.query(ExecutiveCompensation).filter_by(awardee_or_recipient_uniqu=row['awardee_or_recipient_uniqu']).\
@@ -71,6 +85,11 @@ def parse_sam_file(file, sess):
     for _, row in delete_data.iterrows():
         sess.query(ExecutiveCompensation).filter_by(awardee_or_recipient_uniqu=row['awardee_or_recipient_uniqu']).\
             delete(synchronize_session=False)
+    logger.info(
+        {
+            'message': "Committing data from file: " + str(file.name),
+            'filename': str(file.name),
+            'state':'commit-data'})
     sess.commit()
 
 
@@ -155,20 +174,94 @@ if __name__ == '__main__':
         sorted_daily_file_names = sorted([daily_file for daily_file in dirlist if re.match(".*DAILY_\d+", daily_file)])
 
         if historic:
+            logger.info(
+                {
+                    'message': "Beginning load. "+str(len(sorted_daily_file_names))+" files found.",
+                    'state':'begin-historical'})
             for daily_file in sorted_daily_file_names:
                 if local:
+                    logger.info(
+                        {
+                            'message': "Beginning load of file: "+daily_file,
+                            'filename': daily_file,
+                            'state':'begin-historical'})
                     file = open(os.path.join(root_dir, daily_file))
                 else:
+                    logger.info(
+                        {
+                            'message': "Beginning load of file: "+daily_file,
+                            'filename': daily_file,
+                            'state':'begin-file'})
                     file = open(os.path.join(root_dir, daily_file), 'wb')
+                    logger.info(
+                        {
+                            'message': "Downloading file: "+daily_file,
+                            'filename': daily_file,
+                            'state':'download-file'})
                     sftp.getfo(''.join([REMOTE_SAM_DIR, '/', daily_file]), file)
                 parse_sam_file(file, sess)
+                logger.info(
+                    {
+                        'message': "Closing and deleting (if remote) file: "+daily_file,
+                        'filename': daily_file,
+                        'state':'close-file'})
                 file.close()
-                os.remove(os.path.join(root_dir, daily_file))
+                if not local: os.remove(os.path.join(root_dir, daily_file))
+                logger.info(
+                    {
+                        'message': "Completed file: "+daily_file,
+                        'filename': daily_file,
+                        'state':'complete-file'})
+            logger.info(
+                {
+                    'message': "Completed load. "+str(len(sorted_daily_file_names))+" files loaded.",
+                    'state':'complete-historical'})
         elif not local:
+            logger.info(
+                {
+                    'message': "Beginning load of file: "+sorted_daily_file_names[-1],
+                    'filename': sorted_daily_file_names[-1],
+                    'state':'begin-file'})
             file = open(os.path.join(root_dir, sorted_daily_file_names[-1]), 'wb')
+            logger.info(
+                {
+                    'message': "Downloading file: "+sorted_daily_file_names[-1],
+                    'filename': sorted_daily_file_names[-1],
+                    'state':'download-file'})
             sftp.getfo(''.join([REMOTE_SAM_DIR, '/', sorted_daily_file_names[-1]]), file)
             parse_sam_file(file, sess)
+            logger.info(
+                {
+                    'message': "Closing and deleting file: "+sorted_daily_file_names[-1],
+                    'filename': sorted_daily_file_names[-1],
+                    'state':'close-file'})
             file.close()
             os.remove(os.path.join(root_dir, sorted_daily_file_names[-1]))
+            logger.info(
+                {
+                    'message': "Completed file: "+sorted_daily_file_names[-1],
+                    'filename': sorted_daily_file_names[-1],
+                    'state':'complete-file'})
         else:
-            parse_sam_file(open(os.path.join(root_dir, sorted_daily_file_names[-1])), sess)
+            file = open(os.path.join(root_dir, sorted_daily_file_names[-1]))
+            logger.info(
+                {
+                    'message': "Beginning load of file: "+sorted_daily_file_names[-1],
+                    'filename': sorted_daily_file_names[-1],
+                    'state':'begin-file'})
+            parse_sam_file(file, sess)
+            logger.info(
+                {
+                    'message': "Closing file: "+sorted_daily_file_names[-1],
+                    'filename': sorted_daily_file_names[-1],
+                    'state':'close-file'})
+            file.close()
+            logger.info(
+                {
+                    'message': "Completed file: "+sorted_daily_file_names[-1],
+                    'filename': sorted_daily_file_names[-1],
+                    'state':'complete-file'})
+
+
+
+
