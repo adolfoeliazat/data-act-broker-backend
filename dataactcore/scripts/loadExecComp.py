@@ -8,6 +8,7 @@ import re
 from collections import OrderedDict
 import numpy as np
 import argparse
+from datetime import datetime
 
 from dataactcore.models.domainModels import ExecutiveCompensation
 from dataactcore.interfaces.db import GlobalDB
@@ -78,6 +79,9 @@ def parse_sam_file(file, sess):
             'message': "Inserting data from file: " + str(file.name),
             'filename': str(file.name),
             'state':'insert-data'})
+    now = datetime.utcnow()
+    add_data = add_data.assign(created_at=now, updated_at=now)
+    update_data = update_data.assign(updated_at=now)
     insert_dataframe(add_data, table_name, sess.connection())
     for _, row in update_data.iterrows():
         sess.query(ExecutiveCompensation).filter_by(awardee_or_recipient_uniqu=row['awardee_or_recipient_uniqu']).\
