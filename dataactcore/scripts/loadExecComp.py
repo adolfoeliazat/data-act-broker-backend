@@ -9,6 +9,7 @@ from collections import OrderedDict
 import numpy as np
 import argparse
 from datetime import datetime
+import csv
 
 from dataactcore.models.domainModels import ExecutiveCompensation
 from dataactcore.interfaces.db import GlobalDB
@@ -48,7 +49,8 @@ def parse_sam_file(file, sess):
     }
     column_header_mapping_ordered = OrderedDict(sorted(column_header_mapping.items(), key=lambda c: c[1]))
     csv_data = pd.read_csv(zfile.open(csv_file), dtype=str, header=None, skiprows=1, nrows=nrows, sep='|',
-                           usecols=column_header_mapping_ordered.values(), names=column_header_mapping_ordered.keys())
+                           usecols=column_header_mapping_ordered.values(), names=column_header_mapping_ordered.keys(),
+                           quoting=csv.QUOTE_NONE)
     total_data = csv_data.copy()
 
     # skipping when sam_extract == '4' as it's expired
