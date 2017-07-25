@@ -10,6 +10,7 @@ import threading
 from dataactcore.logging import configure_logging
 
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 
 from dataactcore.interfaces.db import GlobalDB
 from dataactcore.models.domainModels import CGAC, SubTierAgency
@@ -941,34 +942,47 @@ def process_delete_data(data, atom_type):
     return unique_string
 
 
-def process_and_add(data, contract_type, sess, last_run=None):
-    """ start the processing for data and add it to the DB """
-    # if a date that the script was last successfully run is not provided, assume we're inserting for the first
-    # time so we can just add the model rather than making sure it doesn't exist yet
-    if not last_run:
-        for value in data:
-            tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
-            tmp_award = DetachedAwardProcurement(**tmp_obj)
-            sess.add(tmp_award)
-    # if a date that the script was last successfully run is provided, we're inserting over something that already
-    # exists so we have to check for conflicts and update when there is one
-    else:
-        for value in data:
-            tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
-            insert_statement = insert(DetachedAwardProcurement).values(**tmp_obj).\
-                on_conflict_do_update(index_elements=['detached_award_proc_unique'], set_=tmp_obj)
+def create_processed_data_list(data, contract_type, sess):
+    data_list = []
+    for value in data:
+        tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
+        data_list.append(tmp_obj)
+    return data_list
+
+
+def add_processed_data_list(data, sess):
+    try:
+        sess.bulk_save_objects([DetachedAwardProcurement(**fpds_data) for fpds_data in data])
+        sess.commit()
+    except IntegrityError:
+        sess.rollback()
+        logger.error("Attempted to insert duplicate FPDS data. Inserting each row in batch individually.")
+
+        for fpds_obj in data:
+            insert_statement = insert(DetachedAwardProcurement).values(**fpds_obj). \
+                on_conflict_do_update(index_elements=['detached_award_proc_unique'], set_=fpds_obj)
             sess.execute(insert_statement)
+        sess.commit()
 
 
-def get_data(contract_type, award_type, now, sess, last_run=None, split_num=None):
+def process_and_add(data, contract_type, sess):
+    """ start the processing for data and add it to the DB """
+    for value in data:
+        tmp_obj = process_data(value['content'][contract_type], atom_type=contract_type, sess=sess)
+        insert_statement = insert(DetachedAwardProcurement).values(**tmp_obj).\
+            on_conflict_do_update(index_elements=['detached_award_proc_unique'], set_=tmp_obj)
+        sess.execute(insert_statement)
+
+
+def get_data(contract_type, award_type, now, sess, last_run=None):
     """ get the data from the atom feed based on contract/award type and the last time the script was run """
     data = []
     yesterday = now - datetime.timedelta(days=1)
     # if a date that the script was last successfully run is not provided, get all data
     if not last_run:
         # params = 'SIGNED_DATE:[2015/10/01,'+ yesterday.strftime('%Y/%m/%d') + '] '
-        params = 'SIGNED_DATE:[2016/10/01,' + yesterday.strftime('%Y/%m/%d') + '] '
-        # params = 'SIGNED_DATE:[2017/05/01,'+ yesterday.strftime('%Y/%m/%d') + '] '
+        # params = 'SIGNED_DATE:[2016/10/01,' + yesterday.strftime('%Y/%m/%d') + '] '
+        params = 'SIGNED_DATE:[2017/07/01,' + yesterday.strftime('%Y/%m/%d') + '] '
     # if a date that the script was last successfully run is provided, get data since that date
     else:
         last_run_date = last_run.update_date
@@ -981,9 +995,6 @@ def get_data(contract_type, award_type, now, sess, last_run=None, split_num=None
 
     i = 0
     loops = 0
-    # if we're splitting the thread into 2, the starting i value is the number passed * 10 - 10 (1 or 2, so 0 or 10)
-    if split_num:
-        i = split_num * 10 - 10
     logger.info('Starting get feed: ' + feed_url + params + 'CONTRACT_TYPE:"' + contract_type.upper() +
                 '" AWARD_TYPE:"' + award_type + '"')
     while True:
@@ -999,61 +1010,43 @@ def get_data(contract_type, award_type, now, sess, last_run=None, split_num=None
         except KeyError:
             listed_data = []
 
-        for ld in listed_data:
-            data.append(ld)
-            i += 1
-
-        # if we're splitting the thread, we're basically playing leapfrog so we need to skip the next 10
-        if split_num:
-            i += 10
+        # if we're calling threads, we want to just add to the list, otherwise we want to process the data now
+        if last_run:
+            for ld in listed_data:
+                data.append(ld)
+                i += 1
+        else:
+            data.extend(create_processed_data_list(listed_data, contract_type, sess))
+            i += len(listed_data)
 
         # Log which one we're on so we can keep track of how far we are, insert into DB ever 1k lines
         if loops % 100 == 0 and loops != 0:
-            if split_num:
-                records = i - (loops * 10)
-                # we need to take 10 records out if we're on thread 2 because we started i 10 ahead
-                if split_num == 2:
-                    records -= 10
-
-                logger.info("Retrieved %s lines of get %s: %s feed %s, writing next 1,000 to DB", records,
-                            contract_type, award_type, split_num)
+            logger.info("Retrieved %s lines of get %s: %s feed, writing next 1,000 to DB", i, contract_type, award_type)
+            # if we're calling threads, we want process_and_add, otherwise we want add_processed_data_list
+            if last_run:
+                process_and_add(data, contract_type, sess)
             else:
-                logger.info("Retrieved %s lines of get %s: %s feed, writing next 1,000 to DB", i, contract_type,
-                            award_type)
-            process_and_add(data, contract_type, sess, last_run)
+                add_processed_data_list(data, sess)
             data = []
 
-            if split_num:
-                logger.info("Successfully inserted 1,000 lines of get %s: %s feed %s, continuing feed retrieval",
-                            contract_type, award_type, split_num)
-            else:
-                logger.info("Successfully inserted 1,000 lines of get %s: %s feed, continuing feed retrieval",
-                            contract_type, award_type)
+            logger.info("Successfully inserted 1,000 lines of get %s: %s feed, continuing feed retrieval",
+                        contract_type, award_type)
 
         # if we got less than 10 records, we can stop calling the feed
         if len(listed_data) < 10:
             break
 
-    if split_num:
-        records = i - (loops * 10)
-        # we need to take 10 records out if we're on thread 2 because we started i 10 ahead
-        if split_num == 2:
-            records -= 10
-        logger.info("Total entries in %s: %s feed %s: " + str(records), contract_type, award_type, split_num)
-    else:
-        logger.info("Total entries in %s: %s feed: " + str(i), contract_type, award_type)
+    logger.info("Total entries in %s: %s feed: " + str(i), contract_type, award_type)
 
     # insert whatever is left
-    if split_num:
-        logger.info("Processing remaining lines for %s: %s feed %s", contract_type, award_type, split_num)
+    logger.info("Processing remaining lines for %s: %s feed", contract_type, award_type)
+    # if we're calling threads, we want process_and_add, otherwise we want add_processed_data_list
+    if last_run:
+        process_and_add(data, contract_type, sess)
     else:
-        logger.info("Processing remaining lines for %s: %s feed", contract_type, award_type)
-    process_and_add(data, contract_type, sess, last_run)
+        add_processed_data_list(data, sess)
 
-    if split_num:
-        logger.info("processed " + contract_type + ": " + award_type + " thread " + str(split_num) + " data")
-    else:
-        logger.info("processed " + contract_type + ": " + award_type + " data")
+    logger.info("processed " + contract_type + ": " + award_type + " data")
 
 
 def get_delete_data(contract_type, now, sess, last_run):
@@ -1120,47 +1113,33 @@ def main():
     parser = argparse.ArgumentParser(description='Pull data from the FPDS Atom Feed.')
     parser.add_argument('-a', '--all', help='Clear out the database and get historical data', action='store_true')
     parser.add_argument('-l', '--latest', help='Get by last_mod_date stored in DB', action='store_true')
+    parser.add_argument('-d', '--delivery', help='Used in conjunction with -a to indicate delivery order feed',
+                        action='store_true')
+    parser.add_argument('-o', '--other',
+                        help='Used in conjunction with -a to indicate all feeds other than delivery order',
+                        action='store_true')
     args = parser.parse_args()
 
     award_types_award = ["BPA Call", "Definitive Contract", "Purchase Order", "Delivery Order"]
     award_types_idv = ["GWAC", "BOA", "BPA", "FSS", "IDC"]
 
     if args.all:
+        if (not args.delivery and not args.other) or (args.delivery and args.other):
+            logger.error("When using the -a flag, please include either -d or -o "
+                         "(but not both) to indicate which feeds to read in")
+            raise ValueError("When using the -a flag, please include either -d or -o "
+                             "(but not both) to indicate which feeds to read in")
         logger.info("Starting at: " + str(datetime.datetime.now()))
-        # clear out table
-        sess.query(DetachedAwardProcurement).delete()
 
-        # turn off autoflush for threading because we don't need an updated DB here (only querying CGAC)
-        # and it might interfere with the sess.add() call if it's on
-        sess.autoflush = False
-        thread_list = []
-        # loop through and check all award types, check IDV stuff first because it generally has less content
-        # so the threads will actually leave earlier and can be terminated in the loop
-        for award_type in award_types_idv:
-            t = threading.Thread(target=get_data, args=("IDV", award_type, now, sess), name=award_type)
-            thread_list.append(t)
-            t.start()
-        for award_type in award_types_award:
-            if award_type == "Delivery Order":
-                t1 = threading.Thread(target=get_data, args=("award", award_type, now, sess), kwargs={'split_num': 1},
-                                      name=award_type)
-                t2 = threading.Thread(target=get_data, args=("award", award_type, now, sess), kwargs={'split_num': 2},
-                                      name=award_type)
-                thread_list.append(t1)
-                thread_list.append(t2)
-                t1.start()
-                t2.start()
-            else:
-                t = threading.Thread(target=get_data, args=("award", award_type, now, sess), name=award_type)
-                thread_list.append(t)
-                t.start()
+        if args.other:
+            for award_type in award_types_idv:
+                get_data("IDV", award_type, now, sess)
+            for award_type in award_types_award:
+                if award_type != "Delivery Order":
+                    get_data("award", award_type, now, sess)
 
-        # don't continue until all threads are done
-        for t in thread_list:
-            t.join()
-
-        # turn autoflush back on now that we're done with threading because we like autoflush
-        sess.autoflush = True
+        elif args.delivery:
+            get_data("award", "Delivery Order", now, sess)
 
         last_update = sess.query(FPDSUpdate).one_or_none()
 
