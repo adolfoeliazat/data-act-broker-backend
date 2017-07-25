@@ -4,6 +4,7 @@ import requests
 import xmltodict
 
 import datetime
+import time
 import re
 import threading
 
@@ -13,7 +14,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 
 from dataactcore.interfaces.db import GlobalDB
-from dataactcore.models.domainModels import CGAC, SubTierAgency
+from dataactcore.utils.statusCode import StatusCode
+from dataactcore.utils.responseException import ResponseException
+from dataactcore.models.domainModels import SubTierAgency
 from dataactcore.models.stagingModels import DetachedAwardProcurement
 from dataactcore.models.jobModels import FPDSUpdate
 
@@ -995,11 +998,27 @@ def get_data(contract_type, award_type, now, sess, sub_tier_list, last_run=None)
                 '" AWARD_TYPE:"' + award_type + '"')
     while True:
         loops += 1
-        resp = requests.get(feed_url + params + 'CONTRACT_TYPE:"' + contract_type.upper() + '" AWARD_TYPE:"' +
-                            award_type + '"&start=' + str(i), timeout=60)
-        resp_data = xmltodict.parse(resp.text, process_namespaces=True,
-                                    namespaces={'http://www.fpdsng.com/FPDS': None,
-                                                'http://www.w3.org/2005/Atom': None})
+        exception_retries = -1
+        retry_sleep_times = [5, 30, 60]
+        # looping in case feed breaks
+        while True:
+            try:
+                resp = requests.get(feed_url + params + 'CONTRACT_TYPE:"' + contract_type.upper() + '" AWARD_TYPE:"' +
+                                    award_type + '"&start=' + str(i), timeout=60)
+                resp_data = xmltodict.parse(resp.text, process_namespaces=True,
+                                            namespaces={'http://www.fpdsng.com/FPDS': None,
+                                                        'http://www.w3.org/2005/Atom': None})
+                break
+            except ConnectionResetError:
+                exception_retries += 1
+                # retry up to 3 times before raising an error
+                if exception_retries < 3:
+                    time.sleep(retry_sleep_times[exception_retries])
+                else:
+                    raise ResponseException(
+                        "Connection to FPDS feed lost, maximum retry attempts exceeded.", StatusCode.INTERNAL_ERROR
+                    )
+
         # only list the data if there's data to list
         try:
             listed_data = list_data(resp_data['feed']['entry'])
