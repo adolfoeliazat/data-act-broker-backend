@@ -26,7 +26,8 @@ FILE_STATUS_DICT = {item.name: item.id for item in FILE_STATUS}
 FILE_STATUS_DICT_ID = {item.id: item.name for item in FILE_STATUS}
 
 ERROR_TYPE = [
-    LookupType(1, 'type_error', 'The value provided was of the wrong type'),
+    LookupType(1, 'type_error', 'The value provided was of the wrong type. Note that all type errors in a line'
+                                ' must be fixed before the rest of the validation logic is applied to that line.'),
     LookupType(2, 'required_error', 'A required value was not provided'),
     LookupType(3, 'value_error', 'The value provided was invalid'),
     LookupType(4, 'read_error', 'Could not parse this record correctly'),
@@ -81,15 +82,16 @@ FILE_TYPE_DICT_LETTER = {item.id: item.letter for item in FILE_TYPE}
 FILE_TYPE_DICT_LETTER_ID = {item.letter: item.id for item in FILE_TYPE}
 FILE_TYPE_DICT_LETTER_NAME = {item.letter: item.name for item in FILE_TYPE}
 
-PERMISSION_TYPE = [
+PERMISSION_TYPES = [
     LookupType(1, 'reader', 'This user is allowed to view any submission for their agency'),
     LookupType(2, 'writer', 'This user is allowed to create and edit any submission for their agency'),
     LookupType(3, 'submitter', 'This user is allowed to certify and submit any submission for their agency'),
     # Placeholder 4: website_admin
+    LookupType(5, 'fabs', 'This user is allowed to create and publish any FABS data for their agency')
 ]
-PERMISSION_TYPE_DICT = {item.name: item.id for item in PERMISSION_TYPE}
-PERMISSION_TYPE_DICT_ID = {item.id: item.name for item in PERMISSION_TYPE}
-PERMISSION_SHORT_DICT = {item.name[0]: item.id for item in PERMISSION_TYPE}
+PERMISSION_TYPE_DICT = {item.name: item.id for item in PERMISSION_TYPES[:3]}
+PERMISSION_TYPE_DICT_ID = {item.id: item.name for item in PERMISSION_TYPES}
+PERMISSION_SHORT_DICT = {item.name[0]: item.id for item in PERMISSION_TYPES}
 
 FIELD_TYPE = [
     LookupType(1, 'INT', 'integer type'),

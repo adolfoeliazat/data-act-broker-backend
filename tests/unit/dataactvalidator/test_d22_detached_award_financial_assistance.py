@@ -1,32 +1,33 @@
 from tests.unit.dataactcore.factories.staging import DetachedAwardFinancialAssistanceFactory
-from dataactcore.models.domainModels import CGAC
 from tests.unit.dataactvalidator.utils import number_of_errors, query_columns
 
 _FILE = 'd22_detached_award_financial_assistance'
 
 
 def test_column_headers(database):
-    expected_subset = {'row_number', 'awarding_agency_code'}
+    expected_subset = {"row_number", "correction_late_delete_ind"}
     actual = set(query_columns(_FILE, database))
     assert expected_subset == actual
 
 
 def test_success(database):
-    """ AwardingAgencyCode must be a valid 3-digit CGAC agency code """
+    """ When provided, CorrectionLateDeleteIndicator must contain one of the following values: C, D, or L. """
+    det_award_1 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind="")
+    det_award_2 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind=None)
+    det_award_3 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind="c")
+    det_award_4 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind="D")
+    det_award_5 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind="L")
 
-    cgac = CGAC(cgac_code='001')
-    det_award = DetachedAwardFinancialAssistanceFactory(awarding_agency_code=cgac.cgac_code)
-    det_award_2 = DetachedAwardFinancialAssistanceFactory(awarding_agency_code='001')
-
-    errors = number_of_errors(_FILE, database, models=[det_award, det_award_2, cgac])
+    errors = number_of_errors(_FILE, database, models=[det_award_1, det_award_2, det_award_3, det_award_4, det_award_5])
     assert errors == 0
 
 
 def test_failure(database):
-    """ AwardingAgencyCode must be a valid 3-digit CGAC agency code """
+    """ Test failure for when provided, CorrectionLateDeleteIndicator must contain one of the following values:
+        C, D, or L. """
+    det_award_1 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind="A")
+    det_award_2 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind="Z")
+    det_award_3 = DetachedAwardFinancialAssistanceFactory(correction_late_delete_ind="cd")
 
-    cgac = CGAC(cgac_code='001')
-    det_award = DetachedAwardFinancialAssistanceFactory(awarding_agency_code='bad')
-
-    errors = number_of_errors(_FILE, database, models=[det_award, cgac])
-    assert errors == 1
+    errors = number_of_errors(_FILE, database, models=[det_award_1, det_award_2, det_award_3])
+    assert errors == 3

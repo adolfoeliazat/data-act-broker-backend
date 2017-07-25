@@ -108,3 +108,14 @@ class SubmissionNarrativeFactory(factory.Factory):
     file_type_id = fuzzy.FuzzyInteger(9999)
     file_type = factory.SubFactory(FileTypeFactory)
     narrative = fuzzy.FuzzyText()
+
+
+class WindowFactory(factory.Factory):
+    class Meta:
+        model = jobModels.SubmissionWindow
+
+    window_id = fuzzy.FuzzyInteger(9999)
+    start_date = fuzzy.FuzzyDate(date(2010, 1, 1))
+    end_date = fuzzy.FuzzyDate(date(2010, 1, 1))
+    block_certification = False
+    message = fuzzy.FuzzyText()

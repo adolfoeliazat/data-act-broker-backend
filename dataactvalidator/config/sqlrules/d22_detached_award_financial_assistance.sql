@@ -1,11 +1,7 @@
--- AwardingAgencyCode must be a valid 3-digit CGAC agency code.
+-- When provided, CorrectionLateDeleteIndicator must contain one of the following values: ""C"", ""D"", or ""L"".
 SELECT
-    dafa.row_number,
-    dafa.awarding_agency_code
-FROM detached_award_financial_assistance as dafa
-WHERE dafa.submission_id = {0}
-    AND NOT EXISTS (
-        SELECT cgac.cgac_code
-        FROM cgac AS cgac
-        WHERE cgac.cgac_code = dafa.awarding_agency_code
-    )
+    row_number,
+    correction_late_delete_ind
+FROM detached_award_financial_assistance
+WHERE submission_id = {0}
+    AND COALESCE(UPPER(correction_late_delete_ind),'') not in ('','C','D','L')

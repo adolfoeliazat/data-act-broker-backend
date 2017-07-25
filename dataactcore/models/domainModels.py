@@ -108,6 +108,14 @@ class CGAC(Base):
     agency_name = Column(Text)
 
 
+class FREC(Base):
+    __tablename__ = "frec"
+    frec_id = Column(Integer, primary_key=True)
+    frec_code = Column(Text, nullable=True, index=True, unique=True)
+    agency_name = Column(Text)
+    cgac_code = Column(Text)
+
+
 class SubTierAgency(Base):
     __tablename__ = "sub_tier_agency"
     sub_tier_agency_id = Column(Integer, primary_key=True)
@@ -197,6 +205,8 @@ class ExecutiveCompensation(Base):
     high_comp_officer4_amount = Column(Text)
     high_comp_officer5_full_na = Column(Text)
     high_comp_officer5_amount = Column(Text)
+    activation_date = Column(Date)
+    expiration_date = Column(Date)
 
 
 class CFDAProgram(Base):
@@ -256,3 +266,46 @@ class Zips(Base):
     congressional_district_no = Column(Text)
 
     __table_args__ = (UniqueConstraint('zip5', 'zip_last4', name='uniq_zip5_zip_last4'),)
+
+
+class CityCode(Base):
+    """ City code data and other useful, identifying location data """
+    __tablename__ = "city_code"
+
+    city_code_id = Column(Integer, primary_key=True)
+    feature_name = Column(Text)
+    feature_class = Column(Text)
+    city_code = Column(Text)
+    state_code = Column(Text)
+    county_number = Column(Text)
+    county_name = Column(Text)
+    latitude = Column(Text)
+    longitude = Column(Text)
+
+
+class CountyCode(Base):
+    """ County code data per state """
+    __tablename__ = "county_code"
+
+    county_code_id = Column(Integer, primary_key=True)
+    county_number = Column(Text)
+    county_name = Column(Text)
+    state_code = Column(Text)
+
+
+class States(Base):
+    """ State abbreviations and names """
+    __tablename__ = "states"
+
+    states_id = Column(Integer, primary_key=True)
+    state_code = Column(Text)
+    state_name = Column(Text)
+
+
+class ZipCity(Base):
+    """ zip-5 to city name mapping """
+    __tablename__ = "zip_city"
+
+    zip_city_id = Column(Integer, primary_key=True)
+    zip_code = Column(Text)
+    city_name = Column(Text)
