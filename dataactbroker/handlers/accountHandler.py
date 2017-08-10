@@ -250,7 +250,10 @@ def perms_to_affiliations(perms):
         frec.frec_code: frec
         for frec in GlobalDB.db().session.query(FREC)
     }
+    logger.info("All permissions for this user:")
+    logger.info(perms)
     for perm in perms:
+        logger.info("perms_to_affiliation permission: {}".format(perm))
         components = perm.split('-PERM_')
         if len(components) != 2:
             logger.warning('Malformed permission: %s', perm)
