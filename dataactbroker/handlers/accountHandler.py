@@ -251,9 +251,7 @@ def perms_to_affiliations(perms):
         for frec in GlobalDB.db().session.query(FREC)
     }
     logger.info("All permissions for this user:")
-    logger.info(perms)
     for perm in perms:
-        logger.info("perms_to_affiliation permission: {}".format(perm))
         components = perm.split('-PERM_')
         if len(components) != 2:
             logger.warning('Malformed permission: %s', perm)
@@ -287,16 +285,15 @@ def perms_to_affiliations(perms):
             continue
 
         if frec_code:
-            yield list(
-                UserAffiliation(
-                    cgac=available_cgacs[cgac_code],
-                    frec=None,
-                    permission_type_id=PERMISSION_SHORT_DICT['r']
-                ), UserAffiliation(
-                    cgac=None,
-                    frec=available_frecs[frec_code],
-                    permission_type_id=PERMISSION_SHORT_DICT[perm_level]
-                )
+            yield UserAffiliation(
+                cgac=available_cgacs[cgac_code],
+                frec=None,
+                permission_type_id=PERMISSION_SHORT_DICT['r']
+            )
+            yield UserAffiliation(
+                cgac=None,
+                frec=available_frecs[frec_code],
+                permission_type_id=PERMISSION_SHORT_DICT[perm_level]
             )
         else:
             yield UserAffiliation(
