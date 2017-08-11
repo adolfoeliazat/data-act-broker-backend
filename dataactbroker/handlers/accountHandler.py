@@ -250,7 +250,6 @@ def perms_to_affiliations(perms):
         frec.frec_code: frec
         for frec in GlobalDB.db().session.query(FREC)
     }
-    logger.info("All permissions for this user:")
     for perm in perms:
         components = perm.split('-PERM_')
         if len(components) != 2:
