@@ -584,7 +584,11 @@ class ValidationManager:
         # set job status to running and do validations
         mark_job_status(job_id, "running")
         if job_type_name == 'csv_record_validation':
+            # try:
             self.run_validation(job)
+            # except ResponseException as e:
+            #     if e.errorType == ValidationError.headerError:
+            #         return JsonResponse.error(e, StatusCode.CLIENT_ERROR)
         elif job_type_name == 'validation':
             self.run_cross_validation(job)
         else:
