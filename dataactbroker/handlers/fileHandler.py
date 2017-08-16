@@ -1217,7 +1217,7 @@ def submission_agency_code_from_sub_tier_agency(sess, sub_tier_agency):
         if affil.permission_type_id >= PERMISSION_SHORT_DICT['f']:
             if affil.cgac and (affil.cgac.cgac_code == cgac_code):
                 break
-            elif affil.frec and (affil.frec.cgac_code == cgac_code):
+            elif affil.frec and (affil.frec.cgac.cgac_code == cgac_code):
                 return None, affil.frec.frec_code
     return cgac_code, None
 

@@ -116,7 +116,7 @@ def get_associated_cgacs(fn):
                     if affil.cgac:
                         cgacs.append(affil.cgac)
                     elif affil.frec:
-                        frec_cgac_codes.append(affil.frec.cgac_code)
+                        frec_cgac_codes.append(affil.frec.cgac.cgac_code)
             frec_cgacs = sess.query(CGAC).filter(CGAC.cgac_code.in_(frec_cgac_codes)).all()
             cgacs = cgacs + frec_cgacs
         return fn(cgacs, *args, **kwargs)
