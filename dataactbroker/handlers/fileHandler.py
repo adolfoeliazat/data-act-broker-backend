@@ -719,7 +719,8 @@ class FileHandler:
             else:
                 sub_tier_agency = sess.query(SubTierAgency).\
                     filter_by(sub_tier_agency_code=request_params["agency_code"]).one()
-                cgac_code, frec_code = submission_agency_code_from_sub_tier_agency(sess, sub_tier_agency)
+                cgac_code = submission_agency_code_from_sub_tier_agency(sess, sub_tier_agency)
+                frec_code = None
 
             # get the agency codes associated with this sub tier agency
             job_data['cgac_code'] = cgac_code
@@ -727,9 +728,6 @@ class FileHandler:
             job_data["d2_submission"] = True
             job_data['reporting_start_date'] = None
             job_data['reporting_end_date'] = None
-
-            print('cgac_code: {}'.format(cgac_code))
-            print('frec_code: {}'.format(frec_code))
 
             """
             Below lines commented out to temporarily allow all users
@@ -1209,17 +1207,15 @@ class FileHandler:
 
 
 def submission_agency_code_from_sub_tier_agency(sess, sub_tier_agency):
-    """Create CGAC and FREC codes for the submission, based on the sub-tier
-    agency code and the user's agency affiliations"""
+    """Create CGAC code for the submission, based on the sub-tier agency code and the user's agency affiliations"""
     cgac_code = sub_tier_agency.cgac.cgac_code
-    frec_code = None
     for affil in g.user.affiliations:
         if affil.permission_type_id >= PERMISSION_SHORT_DICT['f']:
             if affil.cgac and (affil.cgac.cgac_code == cgac_code):
                 break
             elif affil.frec and (affil.frec.cgac.cgac_code == cgac_code):
                 return None, affil.frec.frec_code
-    return cgac_code, None
+    return cgac_code
 
 
 def narratives_for_submission(submission):

@@ -62,7 +62,7 @@ def clean_data(data, model, field_map, field_options):
     # make sure all values in fieldMap parameter are in the dataframe/csv file
     for field in field_map:
         if field not in list(data.columns):
-            raise ValueError("{} is required for loading table{}".format(field, model))
+            raise ValueError("{} is required for loading table {}".format(field, model))
     # toss out any columns from the csv that aren't in the fieldMap parameter
     data = data[list(field_map.keys())]
     # rename columns as specified in fieldMap

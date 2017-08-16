@@ -42,7 +42,6 @@ class FRECFactory(factory.Factory):
     frec_code = fuzzy.FuzzyText()
     agency_name = fuzzy.FuzzyText()
     cgac = factory.SubFactory(CGACFactory)
-    
 
 
 class TASFactory(factory.Factory):

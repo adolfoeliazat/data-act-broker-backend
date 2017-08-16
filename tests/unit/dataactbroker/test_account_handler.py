@@ -188,8 +188,8 @@ def test_set_max_perms(database, monkeypatch):
     assert fabs_aff.permission_type_id == PERMISSION_SHORT_DICT['f']
 
     # one FREC DABS from two strings, one FREC FABS, extra readonly CGAC for historical data
-    accountHandler.set_max_perms(user, 
-        'prefix-CGAC_ABC-FREC_ABC-PERM_R,prefix-CGAC_ABC-FREC_ABC-PERM_S,prefix-CGAC_ABC-FREC_ABC-PERM_F')
+    accountHandler.set_max_perms(user, 'prefix-CGAC_ABC-FREC_ABC-PERM_R,prefix-CGAC_ABC-FREC_ABC-PERM_S,' +
+                                 'prefix-CGAC_ABC-FREC_ABC-PERM_F')
     database.session.commit()   # populate ids
     assert len(user.affiliations) == 3
     frec_affils = [affil for affil in user.affiliations if affil.frec is not None]
