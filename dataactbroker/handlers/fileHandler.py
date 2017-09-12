@@ -27,7 +27,7 @@ from dataactcore.aws.s3Handler import S3Handler
 from dataactcore.config import CONFIG_BROKER, CONFIG_SERVICES
 from dataactcore.interfaces.db import GlobalDB
 from dataactcore.models.domainModels import (
-    CGAC, FREC, CFDAProgram, SubTierAgency, Zips, States, CountyCode, CityCode, ZipCity)
+    CGAC, FREC, CFDAProgram, SubTierAgency, Zips, States, CountyCode, CityCode, ZipCity, CountryCode)
 from dataactcore.models.errorModels import File
 from dataactcore.models.stagingModels import DetachedAwardFinancialAssistance, PublishedAwardFinancialAssistance
 from dataactcore.models.jobModels import (
@@ -1423,8 +1423,8 @@ def list_submissions(page, limit, certified, sort='modified', order='desc', d2_s
     columns_to_query = submission_columns + cgac_columns + frec_columns + user_columns + view_columns
 
     query = sess.query(*columns_to_query).\
-        outerjoin(User, Submission.user_id == User.user_id). \
-        outerjoin(certifying_user, Submission.certifying_user_id == certifying_user.user_id). \
+        outerjoin(User, Submission.user_id == User.user_id).\
+        outerjoin(certifying_user, Submission.certifying_user_id == certifying_user.user_id).\
         outerjoin(CGAC, Submission.cgac_code == CGAC.cgac_code).\
         outerjoin(FREC, Submission.frec_code == FREC.frec_code).\
         outerjoin(submission_updated_view.table, submission_updated_view.submission_id == Submission.submission_id).\
@@ -1828,7 +1828,7 @@ def fabs_derivations(obj, sess):
         obj['legal_entity_congressional'] = zip_data.congressional_district_no
 
         # legal entity city data
-        county_info = sess.query(CountyCode). \
+        county_info = sess.query(CountyCode).\
             filter_by(county_number=zip_data.county_number, state_code=zip_data.state_abbreviation).first()
         obj['legal_entity_county_code'] = county_info.county_number
         obj['legal_entity_county_name'] = county_info.county_name
@@ -1844,7 +1844,7 @@ def fabs_derivations(obj, sess):
 
         # legal entity county data
         county_code = ppop_code[-3:]
-        county_info = sess.query(CountyCode). \
+        county_info = sess.query(CountyCode).\
             filter_by(county_number=county_code, state_code=ppop_state.state_code).first()
         obj['legal_entity_county_code'] = county_code
         obj['legal_entity_county_name'] = county_info.county_name
@@ -1855,6 +1855,48 @@ def fabs_derivations(obj, sess):
 
         # legal entity cd data
         obj['legal_entity_congressional'] = obj['place_of_performance_congr']
+
+    # deriving primary_place_of_performance_country_name from primary_place_of_performnce_code
+    if obj['primary_place_of_performance_country_code']:
+        country_data = sess.query(CountryCode).\
+            filter_by(country_code=obj['primary_place_of_performance_country_code'].upper())
+        obj['primary_place_of_performance_country_name'] = country_data.country_name
+
+    # deriving legal_entity_country_name from legal_entity_country_code
+    if obj['legal_entity_country_code']:
+        country_data = sess.query(CountryCode).\
+            filter_by(country_code=obj['legal_entity_country_code'].upper()).one_or_none()
+        obj['legal_entity_country_name'] = country_data.country_name
+
+    # deriving primary_place_of_performance_county_code when record_type is 1
+    if obj['record_type'] == 1:
+        county_data = sess.query(CountyCode).\
+            filter_by(county_number=obj['place_of_performance_code'][-3:],
+                      state_code=obj['place_of_performance_code'][:2]).one_or_none()
+        obj['primary_place_of_performance_county_code'] = county_data.county_number
+        obj['primary_place_of_performance_county_name'] = county_data.county_name
+
+    # deriving primary_place_of_performance_county_code from primary_place_of_performance_zip4a
+    if obj['record_type'] == 2 and obj['legal_entity_zip_last4']:
+        zip_five = obj['place_of_performance_zip4a'][:5]
+        zip_four = None
+
+        # if zip4 is 9 digits, set the zip_four value to the last 4 digits
+        if len(obj['place_of_performance_zip4a']) > 5:
+            zip_four = obj['place_of_performance_zip4a'][-4:]
+
+        # if there's a 9-digit zip code, use both parts to get data, otherwise just grab the first
+        # instance of the zip5 we find
+        if zip_four:
+            zip_info = sess.query(Zips). \
+                filter_by(zip5=zip_five, zip_last4=zip_four).first()
+        else:
+            zip_info = sess.query(Zips). \
+                filter_by(zip5=zip_five).first()
+        obj['primary_place_of_performance_county_code'] = zip_info.county_number
+        county_data = sess.query(CountyCode).\
+            filter_by(county_code=zip_info.county_number, state_code=zip_info.state_abbreviation)
+        obj['primary_place_of_performance_county_name'] = county_data.county_name
 
     # generate the identifier
     obj['afa_generated_unique'] = (obj['award_modification_amendme'] or '-none-') + \

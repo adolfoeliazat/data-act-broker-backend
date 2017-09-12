@@ -24,15 +24,17 @@ def initialize_db_values(db, cfda_title=None, cgac_code=None, frec_code=None, us
     state = StatesFactory(state_code="NY", state_name="New York")
     zip_code_1 = ZipsFactory(zip5="12345", zip_last4="6789", state_abbreviation=state.state_code, county_number="001",
                              congressional_district_no="01")
-    zip_code_2 = ZipsFactory(zip5="12345", zip_last4="4321", state_abbreviation=state.state_code, county_number="001",
+    zip_code_2 = ZipsFactory(zip5="12345", zip_last4="4321", state_abbreviation=state.state_code, county_number="002",
                              congressional_district_no="02")
     zip_city = ZipCityFactory(zip_code=zip_code_1.zip5, city_name="Test Zip City")
     county_code = CountyCodeFactory(state_code=state.state_code, county_number=zip_code_1.county_number,
                                     county_name="Test County")
+    county_code_2 = CountyCodeFactory(state_code=state.state_code, county_number=zip_code_2.county_number,
+                                    county_name="Testing County")
     city_code = CityCodeFactory(feature_name="Test City", city_code="00001", state_code=state.state_code,
                                 county_name="Test City County")
 
-    db.session.add_all([sub_tier, state, cfda_number, zip_code_1, zip_code_2, zip_city, county_code, city_code])
+    db.session.add_all([sub_tier, state, cfda_number, zip_code_1, zip_code_2, zip_city, county_code, county_code_2, city_code])
     db.session.commit()
 
 
@@ -259,3 +261,18 @@ def test_is_active(database):
     obj = initialize_test_obj(cldi="D")
     obj = fabs_derivations(obj, database.session)
     assert obj['is_active'] is False
+
+def test_legal_entity_country_name(database):
+    initialize_db_values(database)
+
+    # Testing with record_type=1
+    obj = initialize_test_obj(record_type=1)
+    obj = fabs_derivations(obj, database.session)
+    assert obj['primary_place_of_performance_county_code'] is '001'
+    assert obj['primary_place_of_performance_county_name'] is 'Test County'
+
+    # Testing with record_type=1
+    obj = initialize_test_obj(record_type=2, ppop_zip4a='123454321')
+    obj = fabs_derivations(obj, database.session)
+    assert obj['primary_place_of_performance_county_code'] is '002'
+    assert obj['primary_place_of_performance_county_name'] is 'Testing County'
