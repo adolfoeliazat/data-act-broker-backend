@@ -529,23 +529,18 @@ def set_active_rows(sess):
 def main():
     sess = GlobalDB.db().session
 
-    num_nodes = 1
-    node = 1
+    num_nodes = int(sys.argv[1]) if len(sys.argv) == 3 else 1
+    node = int(sys.argv[2]) if len(sys.argv) == 3 else 0
     years = list(range(2000, 2018))
     years_array = []
-    if len(sys.argv) == 3:
-        num_nodes = int(sys.argv[1])
-        node = int(sys.argv[2])
-        for year in years:
-            if year % num_nodes == node:
-                years_array.append(str(year))
-        print(years_array)
-        years = "|".join(years_array)
+    for year in years:
+        if year % num_nodes == node:
+            years_array.append(str(year))
+    years = "|".join(years_array)
     print(years)
-    # return
 
     # delete any data in the PublishedAwardFinancialAssistance table
-    logger.info('deleting PublishedAwardFinancialAssistance data')
+    # logger.info('deleting PublishedAwardFinancialAssistance data')
     # sess.query(PublishedAwardFinancialAssistance).delete(synchronize_session=False)
     sess.commit()
 
@@ -588,9 +583,9 @@ def main():
             #     parse_fabs_file(open(os.path.join(base_path, file)), sess, fips_state_list, state_code_list,
             #                     sub_tier_list, county_code_list)
             if re.match('^('+years+')_All_(Grants|DirectPayments)_Full_\d{8}.csv.zip', file):
-                # parse_fabs_file(open(os.path.join(base_path, file)), sess, fips_state_list, state_code_list,
-                #                 sub_tier_list, county_code_list)
-                print(file)
+                parse_fabs_file(open(os.path.join(base_path, file)), sess, fips_state_list, state_code_list,
+                                sub_tier_list, county_code_list)
+                # print(file)
 
     # set_active_rows(sess)
 
