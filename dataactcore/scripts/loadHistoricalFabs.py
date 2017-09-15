@@ -542,7 +542,7 @@ def main():
     # delete any data in the PublishedAwardFinancialAssistance table
     # logger.info('deleting PublishedAwardFinancialAssistance data')
     # sess.query(PublishedAwardFinancialAssistance).delete(synchronize_session=False)
-    sess.commit()
+    # sess.commit()
 
     state_list = sess.query(States).all()
     fips_state_list = {}
@@ -579,13 +579,9 @@ def main():
         base_path = os.path.join(CONFIG_BROKER["path"], "dataactvalidator", "config", "fabs")
         file_list = [f for f in os.listdir(base_path)]
         for file in file_list:
-            # if re.match('^\d{4}_All_(Grants|DirectPayments|Insurance|Loans|Other)_Full_\d{8}.csv.zip', file):
-            #     parse_fabs_file(open(os.path.join(base_path, file)), sess, fips_state_list, state_code_list,
-            #                     sub_tier_list, county_code_list)
-            if re.match('^('+years+')_All_(Grants|DirectPayments)_Full_\d{8}.csv.zip', file):
+            if re.match('^\d{4}_All_(Grants|DirectPayments|Insurance|Loans|Other)_Full_\d{8}.csv.zip', file):
                 parse_fabs_file(open(os.path.join(base_path, file)), sess, fips_state_list, state_code_list,
                                 sub_tier_list, county_code_list)
-                # print(file)
 
     # set_active_rows(sess)
 
