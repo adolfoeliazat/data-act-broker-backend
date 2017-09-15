@@ -30,11 +30,12 @@ def initialize_db_values(db, cfda_title=None, cgac_code=None, frec_code=None, us
     county_code = CountyCodeFactory(state_code=state.state_code, county_number=zip_code_1.county_number,
                                     county_name="Test County")
     county_code_2 = CountyCodeFactory(state_code=state.state_code, county_number=zip_code_2.county_number,
-                                    county_name="Testing County")
+                                      county_name="Testing County")
     city_code = CityCodeFactory(feature_name="Test City", city_code="00001", state_code=state.state_code,
                                 county_name="Test City County")
 
-    db.session.add_all([sub_tier, state, cfda_number, zip_code_1, zip_code_2, zip_city, county_code, county_code_2, city_code])
+    db.session.add_all([sub_tier, state, cfda_number, zip_code_1, zip_code_2, zip_city, county_code, county_code_2,
+                        city_code])
     db.session.commit()
 
 
@@ -261,6 +262,7 @@ def test_is_active(database):
     obj = initialize_test_obj(cldi="D")
     obj = fabs_derivations(obj, database.session)
     assert obj['is_active'] is False
+
 
 def test_legal_entity_country_name(database):
     initialize_db_values(database)
