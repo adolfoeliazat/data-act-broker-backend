@@ -21,8 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 def parse_fabs_file_new_columns(f, sess):
-    csv_file = 'datafeeds\\' + os.path.splitext(os.path.basename(f.name))[0]
-
     column_header_mapping = {"agency_code": 0, "federal_award_mod": 1, "federal_award_id": 2, "uri": 3,
                              "awarding office code": 4, "awarding office name": 5, "funding office name": 6,
                              "funding office code": 7, "funding agency name": 8, "funding agency code": 9,
@@ -31,10 +29,7 @@ def parse_fabs_file_new_columns(f, sess):
                              "legal entity foreign postal code": 14, "legal entity foreign location description": 15}
     column_header_mapping_ordered = OrderedDict(sorted(column_header_mapping.items(), key=lambda c: c[1]))
 
-    nrows = 0
-    with zipfile.ZipFile(f.name) as zfile:
-        with zfile.open(csv_file) as dat_file:
-            nrows = len(dat_file.readlines())
+    nrows = len(f.readlines())
 
     block_size, batch, added_rows = 10000, 0, 0
     batches = nrows // block_size
@@ -44,34 +39,32 @@ def parse_fabs_file_new_columns(f, sess):
         nrows = (((batch + 1) * block_size) - skiprows) if (batch < batches) else last_block_size
         logger.info('loading rows %s to %s', skiprows + 1, nrows + skiprows)
 
-        with zipfile.ZipFile(f.name) as zip_file:
-            with zip_file.open(csv_file) as dat_file:
-                data = pd.read_csv(dat_file, dtype=str, header=None, skiprows=skiprows, nrows=nrows,
-                                   usecols=column_header_mapping_ordered.values(),
-                                   names=column_header_mapping_ordered.keys())
+        data = pd.read_csv(f, dtype=str, header=None, skiprows=skiprows, nrows=nrows,
+                           usecols=column_header_mapping_ordered.values(),
+                           names=column_header_mapping_ordered.keys())
 
-                cdata = format_fabs_data(data)
-                if cdata is not None:
-                    for _, row in cdata.iterrows():
-                        sess.query(PublishedAwardFinancialAssistance).\
-                            filter_by(afa_generated_unique=row['afa_generated_unique']).\
-                            update({"awarding_office_code": row['awarding_office_code'],
-                                    "awarding_office_name": row['awarding_office_name'],
-                                    "funding_office_name": row['funding_office_name'],
-                                    "funding_office_code": row['funding_office_code'],
-                                    "funding_agency_name": row['funding_agency_name'],
-                                    "funding_agency_code": row['funding_agency_code'],
-                                    "funding_sub_tier_agency_co": row['funding_sub_tier_agency_co'],
-                                    "funding_sub_tier_agency_na": row['funding_sub_tier_agency_na'],
-                                    "legal_entity_foreign_city": row['legal_entity_foreign_city'],
-                                    "legal_entity_foreign_provi": row['legal_entity_foreign_provi'],
-                                    "legal_entity_foreign_posta": row['legal_entity_foreign_posta'],
-                                    "legal_entity_foreign_descr": row['legal_entity_foreign_descr']},
-                                   synchronize_session=False)
+        cdata = format_fabs_data(data)
+        if cdata is not None:
+            for _, row in cdata.iterrows():
+                sess.query(PublishedAwardFinancialAssistance).\
+                    filter_by(afa_generated_unique=row['afa_generated_unique']).\
+                    update({"awarding_office_code": row['awarding_office_code'],
+                            "awarding_office_name": row['awarding_office_name'],
+                            "funding_office_name": row['funding_office_name'],
+                            "funding_office_code": row['funding_office_code'],
+                            "funding_agency_name": row['funding_agency_name'],
+                            "funding_agency_code": row['funding_agency_code'],
+                            "funding_sub_tier_agency_co": row['funding_sub_tier_agency_co'],
+                            "funding_sub_tier_agency_na": row['funding_sub_tier_agency_na'],
+                            "legal_entity_foreign_city": row['legal_entity_foreign_city'],
+                            "legal_entity_foreign_provi": row['legal_entity_foreign_provi'],
+                            "legal_entity_foreign_posta": row['legal_entity_foreign_posta'],
+                            "legal_entity_foreign_descr": row['legal_entity_foreign_descr']},
+                           synchronize_session=False)
 
-            added_rows += nrows
-            batch += 1
-            logger.info('%s PublishedAwardFinancialAssistance records updated', added_rows)
+        added_rows += nrows
+        batch += 1
+        logger.info('%s PublishedAwardFinancialAssistance records updated', added_rows)
     sess.commit()
 
 
