@@ -39,46 +39,50 @@ def parse_fabs_file_new_columns(f, sess):
         nrows = (((batch + 1) * block_size) - skiprows) if (batch < batches) else last_block_size
         logger.info('loading rows %s to %s', skiprows + 1, nrows + skiprows)
 
-        data = pd.read_csv(f, dtype=str, header=None, skiprows=skiprows, nrows=nrows,
-                           usecols=column_header_mapping_ordered.values(),
-                           names=column_header_mapping_ordered.keys())
+        with open(f.name, 'r') as file:
+            data = pd.read_csv(file, dtype=str, header=None, skiprows=skiprows, nrows=nrows,
+                               usecols=column_header_mapping_ordered.values(),
+                               names=column_header_mapping_ordered.keys())
 
-        cdata = format_fabs_data(data)
-        if cdata is not None:
-            for _, row in cdata.iterrows():
-                sess.query(PublishedAwardFinancialAssistance).\
-                    filter_by(afa_generated_unique=row['afa_generated_unique']).\
-                    update({"awarding_office_code": row['awarding_office_code'],
-                            "awarding_office_name": row['awarding_office_name'],
-                            "funding_office_name": row['funding_office_name'],
-                            "funding_office_code": row['funding_office_code'],
-                            "funding_agency_name": row['funding_agency_name'],
-                            "funding_agency_code": row['funding_agency_code'],
-                            "funding_sub_tier_agency_co": row['funding_sub_tier_agency_co'],
-                            "funding_sub_tier_agency_na": row['funding_sub_tier_agency_na'],
-                            "legal_entity_foreign_city": row['legal_entity_foreign_city'],
-                            "legal_entity_foreign_provi": row['legal_entity_foreign_provi'],
-                            "legal_entity_foreign_posta": row['legal_entity_foreign_posta'],
-                            "legal_entity_foreign_descr": row['legal_entity_foreign_descr']},
-                           synchronize_session=False)
+            cdata = format_fabs_data(data)
+            if cdata is not None:
+                for _, row in cdata.iterrows():
+                    sess.query(PublishedAwardFinancialAssistance).\
+                        filter_by(afa_generated_unique=row['afa_generated_unique']).\
+                        update({"awarding_office_code": row['awarding_office_code'],
+                                "awarding_office_name": row['awarding_office_name'],
+                                "funding_office_name": row['funding_office_name'],
+                                "funding_office_code": row['funding_office_code'],
+                                "funding_agency_name": row['funding_agency_name'],
+                                "funding_agency_code": row['funding_agency_code'],
+                                "funding_sub_tier_agency_co": row['funding_sub_tier_agency_co'],
+                                "funding_sub_tier_agency_na": row['funding_sub_tier_agency_na'],
+                                "legal_entity_foreign_city": row['legal_entity_foreign_city'],
+                                "legal_entity_foreign_provi": row['legal_entity_foreign_provi'],
+                                "legal_entity_foreign_posta": row['legal_entity_foreign_posta'],
+                                "legal_entity_foreign_descr": row['legal_entity_foreign_descr']},
+                               synchronize_session=False)
+                logger.info('%s PublishedAwardFinancialAssistance records updated', added_rows)
 
         added_rows += nrows
         batch += 1
-        logger.info('%s PublishedAwardFinancialAssistance records updated', added_rows)
     sess.commit()
 
 
 def format_fabs_data(data):
     # drop all records without any data to be loaded
-    data = data.replace('', np.nan, inplace=True)
+    data.replace('', np.nan, inplace=True)
     data.dropna(subset=["awarding office code", "awarding office name", "funding office name", "funding office code",
                         "funding agency name", "funding agency code", "funding sub tier agency code",
                         "funding sub tier agency name", "legal entity foreign city", "legal entity foreign province",
-                        "legal entity foreign postal code", "legal entity foreign location description"], inplace=True)
+                        "legal entity foreign postal code", "legal entity foreign location description"],
+                how='all', inplace=True)
 
     # ensure there are rows to be cleaned and formatted
     if len(data.index) == 0:
         return None
+
+    print(data["awarding office code"])
 
     cdata = clean_data(
         data,
@@ -88,18 +92,18 @@ def format_fabs_data(data):
             "federal_award_mod": "award_modification_amendme",
             "federal_award_id": "fain",
             "uri": "uri",
-            "awarding office code": "awarding_office_code",
-            "awarding office name": "awarding_office_name",
-            "funding office name": "funding_office_name",
-            "funding office code": "funding_office_code",
-            "funding agency name": "funding_agency_name",
-            "funding agency code": "funding_agency_code",
-            "funding sub tier agency code": "funding_sub_tier_agency_co",
-            "funding sub tier agency name": "funding_sub_tier_agency_na",
-            "legal entity foreign city": "legal_entity_foreign_city",
-            "legal entity foreign province": "legal_entity_foreign_provi",
-            "legal entity foreign postal code": "legal_entity_foreign_posta",
-            "legal entity foreign location description": "legal_entity_foreign_descr"
+            "awarding_office_code": "awarding_office_code",
+            "awarding_office_name": "awarding_office_name",
+            "funding_office_name": "funding_office_name",
+            "funding_office_code": "funding_office_code",
+            "funding_agency_name": "funding_agency_name",
+            "funding_agency_code": "funding_agency_code",
+            "funding_sub_tier_agency_code": "funding_sub_tier_agency_co",
+            "funding_sub_tier_agency_name": "funding_sub_tier_agency_na",
+            "legal_entity_foreign_city": "legal_entity_foreign_city",
+            "legal_entity_foreign_province": "legal_entity_foreign_provi",
+            "legal_entity_foreign_postal_code": "legal_entity_foreign_posta",
+            "legal_entity_foreign_location_description": "legal_entity_foreign_descr"
         }, {}
     )
 
