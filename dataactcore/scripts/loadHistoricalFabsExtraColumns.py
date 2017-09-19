@@ -37,7 +37,7 @@ def parse_fabs_file_new_columns(f, sess):
     while batch <= batches:
         skiprows = 1 if batch == 0 else (batch * block_size)
         nrows = (((batch + 1) * block_size) - skiprows) if (batch < batches) else last_block_size
-        logger.info('loading rows %s to %s', skiprows + 1, nrows + skiprows)
+        logger.info('cleaning rows %s to %s', skiprows + 1, nrows + skiprows)
 
         with open(f.name, 'r') as file:
             data = pd.read_csv(file, dtype=str, header=None, skiprows=skiprows, nrows=nrows,
@@ -46,6 +46,7 @@ def parse_fabs_file_new_columns(f, sess):
 
             cdata = format_fabs_data(data)
             if cdata is not None:
+                logger.info('updating %s rows', len(cdata.index))
                 for _, row in cdata.iterrows():
                     sess.query(PublishedAwardFinancialAssistance).\
                         filter_by(afa_generated_unique=row['afa_generated_unique']).\
@@ -62,7 +63,7 @@ def parse_fabs_file_new_columns(f, sess):
                                 "legal_entity_foreign_posta": row['legal_entity_foreign_posta'],
                                 "legal_entity_foreign_descr": row['legal_entity_foreign_descr']},
                                synchronize_session=False)
-                logger.info('%s PublishedAwardFinancialAssistance records updated', added_rows)
+                logger.info('Completed %s records', added_rows)
 
         added_rows += nrows
         batch += 1
@@ -81,8 +82,6 @@ def format_fabs_data(data):
     # ensure there are rows to be cleaned and formatted
     if len(data.index) == 0:
         return None
-
-    print(data["awarding office code"])
 
     cdata = clean_data(
         data,
