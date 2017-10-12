@@ -17,6 +17,30 @@ def write_csv(file_name, upload_name, is_local, header, body):
         writer.finish_batch()
 
 
+def write_d_file_csv(sess, agency_code, file_utils, file_name, upload_name, is_local, start, end, file_type):
+    headers, columns = [key for key in file_utils.mapping], file_utils.db_columns
+    page_size, page_idx = 10000, 0
+    with get_write_csv_writer(file_name, upload_name, is_local, headers) as writer:
+        # stream to file
+        while True:
+            page_start = page_size * page_idx
+            # rows = file_utils.\
+            #     query_data(sess, agency_code, start, end, page_start, (page_size * (page_idx + 1))).all()
+            rows = file_utils.\
+                temp_query_data(sess, agency_code, start, end, page_start, (page_size * (page_idx + 1))).all()
+            if rows is None:
+                break
+
+            logger.debug('Writing rows {}-{} to file {} CSV'.format(page_start, page_start+len(rows), file_type))
+            for row in rows:
+                writer.write([dict(zip(columns, row))[value] for value in columns])
+
+            if len(rows) < page_size:
+                break
+            page_idx += 1
+        writer.finish_batch()
+
+
 def get_write_csv_writer(file_name, upload_name, is_local, header):
     """Derive the relevant location.
     :return: the writer object"""

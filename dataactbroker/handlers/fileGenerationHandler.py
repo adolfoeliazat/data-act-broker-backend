@@ -9,7 +9,7 @@ from dataactcore.models.jobModels import Job
 from dataactcore.models.stagingModels import AwardFinancialAssistance, AwardProcurement
 from dataactcore.models.domainModels import ExecutiveCompensation
 from dataactcore.utils import fileD1, fileD2, fileE, fileF
-from dataactvalidator.filestreaming.csv_selection import write_csv, get_write_csv_writer
+from dataactvalidator.filestreaming.csv_selection import write_csv, write_d_file_csv
 
 
 logger = logging.getLogger(__name__)
@@ -52,28 +52,9 @@ def generate_d_file(file_type, agency_code, start, end, job_id, file_name, uploa
     """
     logger.debug('Starting file {} generation'.format(file_type))
 
-    with job_context(job_id) as session:
+    with job_context(job_id) as sess:
         file_utils = fileD1 if file_type == 'D1' else fileD2
-        headers, columns = [key for key in file_utils.mapping], file_utils.db_columns
-        page_size, page_idx = 10000, 0
-        with get_write_csv_writer(file_name, upload_name, is_local, headers) as writer:
-            # stream to file
-            while True:
-                page_start = page_size * page_idx
-                rows = file_utils.\
-                    query_data(session, agency_code, start, end, page_start, (page_size * (page_idx + 1))).all()
-                if rows is None:
-                    break
-
-                logger.debug('Writing rows {}-{} to file {} CSV'.format(page_start, page_start+len(rows), file_type))
-                for row in rows:
-                    writer.write([dict(zip(columns, row))[value] for value in columns])
-
-                if len(rows) < page_size:
-                    break
-                page_idx += 1
-            writer.finish_batch()
-
+        write_d_file_csv(sess, agency_code, file_utils, file_name, upload_name, is_local, start, end, file_type)
         logger.debug('Finished writing to file: {}'.format(file_name))
     logger.debug('Finished file {} generation'.format(file_type))
 
