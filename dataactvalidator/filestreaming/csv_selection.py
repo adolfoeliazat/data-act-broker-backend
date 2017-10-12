@@ -27,7 +27,7 @@ def write_d_file_csv(sess, agency_code, file_utils, file_name, upload_name, is_l
             # rows = file_utils.\
             #     query_data(sess, agency_code, start, end, page_start, (page_size * (page_idx + 1))).all()
             rows = file_utils.\
-                temp_query_data(sess, agency_code, start, end, page_start, (page_size * (page_idx + 1))).all()
+                query_data(sess, agency_code, start, end, page_start, (page_size * (page_idx + 1))).all()
             if rows is None:
                 break
 
