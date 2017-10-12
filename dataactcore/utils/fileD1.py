@@ -434,5 +434,5 @@ def query_data(session, agency_code, start, end, page_start, page_stop):
         filter(file_model.awarding_agency_code == agency_code).\
         filter(cast(file_model.action_date, Date) >= start).\
         filter(cast(file_model.action_date, Date) <= end).\
-        slice(0, 5)
+        slice(page_start, page_stop)
     return rows
